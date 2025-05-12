@@ -16,7 +16,7 @@ An Advanced Python Offensive Security Framework for Jenkins Exploitation in CTF 
 - ✅ **JWT Token Brute-Forcing and Analysis**  
 - ✅ **Post-Exploitation Recon Automation** (Auto Upload & Execute linPEAS, pspy)  
 - ✅ **Report Generation**: JSON, Markdown, PDF (via WeasyPrint)  
-- ✅ **Built-in C2 Server (FastAPI) & Interactive WebSocket Shell**  
+- ✅ **Built-in C2 Server (FastAPI) & Interactive WebSocket Shell (not functional with this release)**  
 - ✅ **Persistence Techniques** (Cron Jobs, Jenkins Pipelines)  
 - ✅ **Modular Exploit Loading** (`exploits/` Directory)  
 
