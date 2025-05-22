@@ -53,7 +53,7 @@ python3 JenkinsBreaker.py --help-commands
 ```
 ## 📖 Note
 This tool is under active development. A full-fledged UI will soon make managing exploits and post-exploitation workflows more intuitive. Stay tuned for upcoming releases!
-
+Working through multiple bugs.
 
 
 
