@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🛰️ Satellite Control Dashboard</title>
+  <!-- Leaflet for 2D Maps -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <!-- CesiumJS for 3D Globe -->
+  <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.93/Build/Cesium/Widgets/widgets.css" />
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.93/Build/Cesium/Cesium.js"></script>
+  <!-- Chart.js for Charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Satellite.js for TLE Parsing and Orbit Prediction -->
+  <script src="https://cdn.jsdelivr.net/npm/satellite.js"></script>
+  <!-- html2canvas for Screenshots -->
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <style>
+    body { margin: 0; padding: 0; font-family: Arial, sans-serif; background: #0c0c0c; color: #e0e0e0; overflow: hidden; }
+    #mapContainer { width: 100%; height: 100vh; }
+    #tabs { position: absolute; top: 10px; left: 10px; z-index: 1000; background: #1a1a1a; padding: 10px; border-radius: 5px; }
+    .tab { margin: 5px; cursor: pointer; display: inline-block; padding: 5px 10px; background: #333; color: #00ffaa; border-radius: 3px; }
+    .tab.active { background: #555; }
+    #sidebar { position: absolute; top: 10px; left: 150px; width: 300px; max-height: 90vh; overflow-y: auto; z-index: 1000; background: #1a1a1a; padding: 10px; border-radius: 5px; cursor: move; }
+    #alerts { position: absolute; top: 10px; right: 10px; width: 250px; max-height: 90vh; overflow-y: auto; z-index: 1000; background: #1a1a1a; padding: 10px; border-radius: 5px; cursor: move; }
+    .panel-header { display: flex; justify-content: space-between; align-items: center; background: #333; padding: 5px; border-radius: 3px; cursor: pointer; }
+    .panel-content { display: block; padding: 10px; background: #222; border-radius: 3px; }
+    .panel-content.minimized { display: none; }
+    .collapsible { cursor: pointer; padding: 5px; background: #333; margin: 5px 0; border-radius: 3px; }
+    .content { display: none; padding: 10px; background: #222; border-radius: 3px; }
+    input, button, select { margin: 5px 0; padding: 5px; background: #333; color: #e0e0e0; border: none; border-radius: 3px; }
+    button { cursor: pointer; background: #00ffaa; color: #0c0c0c; }
+    button:hover { background: #00cc88; }
+    canvas { width: 100%; height: 150px; }
+  </style>
+</head>
+<body>
+  <!-- Tabs Section -->
+  <div id="tabs">
+    <div class="tab active" onclick="switchView('3D')">3D View</div>
+    <div class="tab" onclick="switchView('2D')">2D View</div>
+    <button onclick="toggleMinimizeAll()">Minimize All Panels</button>
+  </div>
+  <!-- Map Container -->
+  <div id="mapContainer"></div>
+  <!-- Sidebar (Movable) -->
+  <div id="sidebar">
+    <!-- Satellite List -->
+    <div id="satelliteList">
+      <h3>🛰️ Satellites</h3>
+      <input id="satSearch" placeholder="Search by Name/NORAD/Freq" onkeyup="filterSatellites()" />
+      <select id="orbitFilter" onchange="filterByOrbit()">
+        <option value="all">All Orbits</option>
+        <option value="LEO">LEO</option>
+        <option value="MEO">MEO</option>
+        <option value="GEO">GEO</option>
+      </select>
+      <div id="satList"></div>
+      <input id="noradInput" placeholder="NORAD ID" />
+      <button onclick="addSatellite()">Add</button>
+      <button onclick="flyToSelectedSatellite()">Fly To</button>
+      <input type="range" id="timelapseSlider" min="-1440" max="0" value="0" oninput="updateTimelapse()" />
+      <label>Orbit Timelapse (Past 24h)</label>
+    </div>
+    <!-- Live Feeds -->
+    <div id="liveFeeds">
+      <h3>Live Feeds</h3>
+      <select id="feedSelect">
+        <option value="">Select Satellite Feed</option>
+        <option value="ISS">ISS</option>
+        <option value="Hubble">Hubble</option>
+        <option value="NOAA-20">NOAA-20</option>
+      </select>
+      <button onclick="addFeedToMap()">Add to Map</button>
+    </div>
+    <!-- Layers -->
+    <div id="layerManager">
+      <h3>Layers</h3>
+      <label><input type="checkbox" checked onchange="toggleLayer('positions')"> Positions</label>
+      <label><input type="checkbox" onchange="toggleLayer('footprints')"> Footprints</label>
+    </div>
+    <!-- Attack Controls -->
+    <div id="attackForm">
+      <h3>Attack Controls</h3>
+      <select id="attackType">
+        <option value="satellite_pass_spoof">Spoof Satellite Pass</option>
+        <option value="jam_satellite_communication">Jam Comm Link</option>
+        <option value="visualize_orbit">Visualize Orbit</option>
+        <option value="biss_key_bruteforce">Crack BISS Key</option>
+        <option value="intercept_satellite_data">Intercept Data</option>
+        <option value="decode_noaa_apt">Decode NOAA APT</option>
+      </select>
+      <input id="attackTarget" placeholder="Target Satellite" />
+      <input id="attackFreq" placeholder="Frequency (MHz)" />
+      <button onclick="launchAttack()">Launch</button>
+    </div>
+    <!-- Spectrogram -->
+    <div id="spectrogram">
+      <h3>SDR Spectrogram</h3>
+      <img id="spectrogramImg" src="/spectrogram.png" alt="Spectrogram" width="280" />
+      <button onclick="captureSpectrogram()">Refresh</button>
+    </div>
+    <!-- TLE Upload -->
+    <div id="tleUpload">
+      <h3>TLE Upload</h3>
+      <input type="file" id="tleFile" accept=".tle,.txt" />
+      <button onclick="uploadTLE()">Upload</button>
+    </div>
+    <!-- Orbit Sandbox -->
+    <div id="orbitSandbox">
+      <h3>Orbit Sandbox</h3>
+      <input id="inclination" placeholder="Inclination (°)" />
+      <input id="eccentricity" placeholder="Eccentricity" />
+      <input id="raan" placeholder="RAAN (°)" />
+      <input id="argPerigee" placeholder="Arg of Perigee (°)" />
+      <button onclick="simulateOrbit()">Simulate</button>
+    </div>
+    <!-- Telemetry Panels -->
+    <div id="telemetryPanels"></div>
+  </div>
+  <!-- Alerts Panel (Movable) -->
+  <div id="alerts">
+    <div class="panel-header">
+      <span>Alerts</span>
+    </div>
+    <div class="panel-content">
+      <div id="alertLog"></div>
+    </div>
+  </div>
+
+  <script>
+    const apiKey = 'YOUR_N2YO_API_KEY'; // Replace with your N2YO API key
+    let currentView = '3D';
+    let viewer3D = new Cesium.Viewer('mapContainer', { terrainProvider: Cesium.createWorldTerrain() });
+    let map2D = L.map('mapContainer').setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map2D);
+    map2D.getContainer().style.display = 'none';
+    let trackedSatellites = [];
+    let selectedSatellite = null;
+    let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+    const satelliteCatalog = [
+      { noradId: '25544', name: 'ISS', frequency: '437.800', orbit: 'LEO' },
+      { noradId: '20580', name: 'Hubble', frequency: '2265.000', orbit: 'LEO' },
+      { noradId: '43689', name: 'NOAA-20', frequency: '137.620', orbit: 'LEO' }
+    ];
+
+    // Make elements draggable
+    function makeDraggable(elementId) {
+      let isDragging = false;
+      let offsetX, offsetY;
+      const element = document.getElementById(elementId);
+      const header = element.querySelector('.panel-header') || element;
+      header.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        offsetX = e.clientX - element.offsetLeft;
+        offsetY = e.clientY - element.offsetTop;
+      });
+      document.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+          element.style.left = `${e.clientX - offsetX}px`;
+          element.style.top = `${e.clientY - offsetY}px`;
+        }
+      });
+      document.addEventListener('mouseup', () => isDragging = false);
+    }
+    makeDraggable('sidebar');
+    makeDraggable('alerts');
+
+    // Minimize all panels
+    function toggleMinimizeAll() {
+      const panels = document.querySelectorAll('.panel-content');
+      panels.forEach(content => content.classList.toggle('minimized'));
+    }
+
+    // Switch Views
+    function switchView(view) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      event.target.classList.add('active');
+      if (view === '3D') {
+        map2D.getContainer().style.display = 'none';
+        viewer3D.container.style.display = 'block';
+        currentView = '3D';
+      } else {
+        viewer3D.container.style.display = 'none';
+        map2D.getContainer().style.display = 'block';
+        map2D.invalidateSize();
+        currentView = '2D';
+      }
+      updateSatellites();
+    }
+
+    // Fetch Satellite Data
+    async function getSatelliteData(noradId) {
+      const posUrl = `https://api.n2yo.com/rest/v1/satellite/positions/${noradId}/0/0/0/1/&apiKey=${apiKey}`;
+      const tleUrl = `https://api.n2yo.com/rest/v1/satellite/tle/${noradId}&apiKey=${apiKey}`;
+      const [posResponse, tleResponse] = await Promise.all([fetch(posUrl), fetch(tleUrl)]);
+      const posData = await posResponse.json();
+      const tleData = await tleResponse.json();
+      const satInfo = satelliteCatalog.find(s => s.noradId === noradId);
+      return {
+        position: posData.positions[0],
+        tle: tleData.tle,
+        frequency: satInfo ? satInfo.frequency : 'Unknown'
+      };
+    }
+
+    // Update Satellites
+    async function updateSatellites(timeOffset = 0) {
+      const satList = document.getElementById('satList');
+      satList.innerHTML = '';
+      for (const sat of trackedSatellites) {
+        const data = await getSatelliteData(sat.noradId);
+        let lat = data.position.satlatitude;
+        let lon = data.position.satlongitude;
+        sat.position = data.position;
+        sat.tle = data.tle.split('\n');
+
+        if (timeOffset !== 0) {
+          const satrec = satellite.twoline2satrec(sat.tle[0], sat.tle[1]);
+          const now = new Date();
+          const offsetTime = new Date(now.getTime() + timeOffset * 60000);
+          const positionAndVelocity = satellite.propagate(satrec, offsetTime);
+          const gmst = satellite.gstime(offsetTime);
+          const pos = satellite.eciToGeodetic(positionAndVelocity.position, gmst);
+          lat = satellite.degreesLat(pos.latitude);
+          lon = satellite.degreesLong(pos.longitude);
+        }
+
+        const isFavorite = favorites.includes(sat.noradId);
+        satList.innerHTML += `
+          <div class="collapsible" onclick="toggleCollapsible(this)">
+            ${sat.name} <span onclick="toggleFavorite('${sat.noradId}')" style="cursor: pointer;">${isFavorite ? '★' : '☆'}</span>
+          </div>
+          <div class="content">
+            <p>Battery: ${Math.random() * 100}%</p>
+            <p>Temperature: ${Math.random() * 50}°C</p>
+            <p>Signal: ${Math.random() * 100}%</p>
+            <p>Orientation: ${Math.random() * 360}°</p>
+            <button onclick="removeSatellite('${sat.noradId}')">Remove</button>
+            <button onclick="showCharts('${sat.noradId}')">Charts</button>
+          </div>
+        `;
+
+        if (currentView === '2D') {
+          if (sat.marker2D) sat.marker2D.setLatLng([lat, lon]);
+          else sat.marker2D = L.marker([lat, lon]).addTo(map2D)
+            .bindPopup(`<b>${sat.name}</b><br>Lat: ${lat}<br>Lon: ${lon}<br>Freq: ${sat.frequency} MHz<br><button onclick="selectSatellite('${sat.noradId}')">Select</button>`);
+        } else {
+          if (sat.entity3D) sat.entity3D.position = Cesium.Cartesian3.fromDegrees(lon, lat);
+          else sat.entity3D = viewer3D.entities.add({
+            position: Cesium.Cartesian3.fromDegrees(lon, lat),
+            point: { pixelSize: 10, color: Cesium.Color.RED },
+            label: { text: sat.name }
+          });
+        }
+
+        if (sat.tracked) {
+          const footprint = calculateFootprint(lat, lon, data.position.sataltitude);
+          if (currentView === '2D') {
+            if (sat.footprintLayer) map2D.removeLayer(sat.footprintLayer);
+            sat.footprintLayer = L.circle([lat, lon], { radius: footprint.radius }).addTo(map2D);
+          } else {
+            if (sat.footprintLayer) viewer3D.entities.remove(sat.footprintLayer);
+            sat.footprintLayer = viewer3D.entities.add({
+              position: Cesium.Cartesian3.fromDegrees(lon, lat),
+              ellipse: {
+                semiMinorAxis: footprint.radius,
+                semiMajorAxis: footprint.radius,
+                height: 0,
+                material: Cesium.Color.RED.withAlpha(0.2)
+              }
+            });
+          }
+        }
+        updateTelemetryPanel(sat);
+      }
+      checkCollisions();
+    }
+    setInterval(() => updateSatellites(0), 5000);
+
+    // Calculate Footprint
+    function calculateFootprint(lat, lon, altitude) {
+      const earthRadius = 6371; // km
+      const angularDistance = Math.acos(earthRadius / (earthRadius + altitude));
+      return { radius: earthRadius * angularDistance * 1000 }; // meters
+    }
+
+    // Collision Detection
+    function checkCollisions() {
+      for (let i = 0; i < trackedSatellites.length; i++) {
+        for (let j = i + 1; j < trackedSatellites.length; j++) {
+          const sat1 = trackedSatellites[i];
+          const sat2 = trackedSatellites[j];
+          const distance = calculateDistance(sat1.position, sat2.position);
+          if (distance < 100) {
+            logAlert(`Collision risk between ${sat1.name} and ${sat2.name}`);
+          }
+        }
+      }
+    }
+
+    function calculateDistance(pos1, pos2) {
+      const R = 6371; // km
+      const lat1 = pos1.satlatitude * Math.PI / 180;
+      const lat2 = pos2.satlatitude * Math.PI / 180;
+      const dLat = (pos2.satlatitude - pos1.satlatitude) * Math.PI / 180;
+      const dLon = (pos2.satlongitude - pos1.satlongitude) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    // Toggle Collapsible Panels
+    function toggleCollapsible(element) {
+      const content = element.nextElementSibling;
+      content.style.display = content.style.display === 'block' ? 'none' : 'block';
+    }
+
+    // Add Satellite
+    function addSatellite() {
+      const noradId = document.getElementById('noradInput').value;
+      const sat = satelliteCatalog.find(s => s.noradId === noradId) || { noradId, name: `SAT ${noradId}`, frequency: 'Unknown', orbit: 'LEO' };
+      if (!trackedSatellites.some(s => s.noradId === noradId)) {
+        sat.tracked = false;
+        trackedSatellites.push(sat);
+        createTelemetryPanel(sat);
+        updateSatellites();
+      }
+      document.getElementById('noradInput').value = '';
+    }
+
+    // Create Telemetry Panel
+    function createTelemetryPanel(sat) {
+      const panelId = `telemetryPanel_${sat.noradId}`;
+      const panel = document.createElement('div');
+      panel.id = panelId;
+      panel.classList.add('minimizable-panel');
+      panel.innerHTML = `
+        <div class="panel-header" onclick="toggleCollapsible(this)">
+          <span>Telemetry: ${sat.name}</span>
+        </div>
+        <div class="panel-content">
+          <p>Battery: ${Math.random() * 100}%</p>
+          <p>Temperature: ${Math.random() * 50}°C</p>
+          <p>Signal Strength: ${Math.random() * 100}%</p>
+          <p>Orientation: ${Math.random() * 360}°</p>
+        </div>
+      `;
+      document.getElementById('telemetryPanels').appendChild(panel);
+    }
+
+    // Update Telemetry Panel
+    function updateTelemetryPanel(sat) {
+      const panelId = `telemetryPanel_${sat.noradId}`;
+      const panel = document.getElementById(panelId);
+      if (panel) {
+        const content = panel.querySelector('.panel-content');
+        content.innerHTML = `
+          <p>Battery: ${Math.random() * 100}%</p>
+          <p>Temperature: ${Math.random() * 50}°C</p>
+          <p>Signal Strength: ${Math.random() * 100}%</p>
+          <p>Orientation: ${Math.random() * 360}°</p>
+        `;
+      }
+    }
+
+    // Remove Satellite
+    function removeSatellite(noradId) {
+      const sat = trackedSatellites.find(s => s.noradId === noradId);
+      if (sat.marker2D) map2D.removeLayer(sat.marker2D);
+      if (sat.entity3D) viewer3D.entities.remove(sat.entity3D);
+      if (sat.footprintLayer) {
+        if (currentView === '2D') map2D.removeLayer(sat.footprintLayer);
+        else viewer3D.entities.remove(sat.footprintLayer);
+      }
+      trackedSatellites = trackedSatellites.filter(s => s.noradId !== noradId);
+      updateSatellites();
+      const panelId = `telemetryPanel_${noradId}`;
+      const panel = document.getElementById(panelId);
+      if (panel) panel.remove();
+    }
+
+    // Filter Satellites
+    function filterSatellites() {
+      const query = document.getElementById('satSearch').value.toLowerCase();
+      const filtered = satelliteCatalog.filter(s =>
+        s.name.toLowerCase().includes(query) ||
+        s.noradId.includes(query) ||
+        s.frequency.includes(query)
+      );
+      document.getElementById('satList').innerHTML = filtered.map(s =>
+        `<div>${s.name} (${s.noradId}) - ${s.frequency} MHz <button onclick="addSatelliteById('${s.noradId}')">Add</button></div>`
+      ).join('');
+    }
+
+    function addSatelliteById(noradId) {
+      document.getElementById('noradInput').value = noradId;
+      addSatellite();
+    }
+
+    // Filter by Orbit
+    function filterByOrbit() {
+      const orbit = document.getElementById('orbitFilter').value;
+      const filtered = orbit === 'all' ? satelliteCatalog : satelliteCatalog.filter(s => s.orbit === orbit);
+      document.getElementById('satList').innerHTML = filtered.map(s =>
+        `<div>${s.name} (${s.noradId}) - ${s.frequency} MHz <button onclick="addSatelliteById('${s.noradId}')">Add</button></div>`
+      ).join('');
+    }
+
+    // Select Satellite
+    function selectSatellite(noradId) {
+      selectedSatellite = trackedSatellites.find(s => s.noradId === noradId);
+      document.getElementById('attackTarget').value = selectedSatellite.name;
+      document.getElementById('attackFreq').value = selectedSatellite.frequency;
+    }
+
+    // Fly To Satellite
+    function flyToSelectedSatellite() {
+      if (selectedSatellite) {
+        getSatelliteData(selectedSatellite.noradId).then(data => {
+          const lat = data.position.satlatitude;
+          const lon = data.position.satlongitude;
+          if (currentView === '2D') map2D.flyTo([lat, lon], 5);
+          else viewer3D.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1000000),
+            duration: 3
+          });
+        });
+      }
+    }
+
+    // Timelapse
+    function updateTimelapse() {
+      const offset = parseInt(document.getElementById('timelapseSlider').value);
+      updateSatellites(offset);
+    }
+
+    // Toggle Tracking
+    function toggleTrack(noradId) {
+      const sat = trackedSatellites.find(s => s.noradId === noradId);
+      sat.tracked = !sat.tracked;
+      updateSatellites();
+    }
+
+    // Orbital Charts
+    let chart;
+    function showCharts(noradId) {
+      const sat = trackedSatellites.find(s => s.noradId === noradId);
+      if (!sat || !sat.tle) return;
+      const satrec = satellite.twoline2satrec(sat.tle[0], sat.tle[1]);
+      const inclination = satrec.inclo * (180 / Math.PI);
+      const period = (2 * Math.PI / satrec.no) / 60;
+      if (chart) chart.destroy();
+      chart = new Chart(document.createElement('canvas'), {
+        type: 'bar',
+        data: {
+          labels: ['Inclination (°)', 'Period (min)'],
+          datasets: [{
+            label: `${sat.name} Parameters`,
+            data: [inclination, period],
+            backgroundColor: ['#00ffaa', '#ffaa00']
+          }]
+        },
+        options: { scales: { y: { beginAtZero: true } } }
+      });
+      const panelId = `telemetryPanel_${sat.noradId}`;
+      const panel = document.getElementById(panelId);
+      if (panel) panel.appendChild(chart.canvas);
+    }
+
+    // Launch Attack
+    function launchAttack() {
+      const type = document.getElementById('attackType').value;
+      const target = document.getElementById('attackTarget').value;
+      const freq = document.getElementById('attackFreq').value;
+      logAlert(`[✔] Attack launched: ${type} on ${target} at ${freq} MHz`);
+    }
+
+    // Add Feed to Map
+    function addFeedToMap() {
+      const feed = document.getElementById('feedSelect').value;
+      if (feed) logAlert(`Adding ${feed} feed to map`);
+      // Placeholder for actual feed integration
+    }
+
+    // Capture Spectrogram
+    function captureSpectrogram() {
+      const freq = document.getElementById('attackFreq').value;
+      if (freq) {
+        logAlert(`[SDR] Capturing spectrogram at ${freq} MHz`);
+        document.getElementById('spectrogramImg').src = `/spectrogram.png?${new Date().getTime()}`;
+      }
+    }
+
+    // Upload TLE
+    function uploadTLE() {
+      const file = document.getElementById('tleFile').files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const tleData = e.target.result.split('\n');
+        if (tleData.length < 2) return logAlert('Invalid TLE file');
+        const satName = tleData[0].trim();
+        const tleLine1 = tleData[1].trim();
+        const tleLine2 = tleData[2].trim();
+        const sat = { name: satName, noradId: `custom_${Date.now()}`, tle: [tleLine1, tleLine2], frequency: 'custom', orbit: 'LEO' };
+        trackedSatellites.push(sat);
+        createTelemetryPanel(sat);
+        updateSatellites();
+      };
+      reader.readAsText(file);
+    }
+
+    // Simulate Orbit
+    function simulateOrbit() {
+      const inclination = document.getElementById('inclination').value;
+      const eccentricity = document.getElementById('eccentricity').value;
+      const raan = document.getElementById('raan').value;
+      const argPerigee = document.getElementById('argPerigee').value;
+      logAlert(`Orbit simulated: Inc=${inclination}, Ecc=${eccentricity}, RAAN=${raan}, ArgP=${argPerigee}`);
+    }
+
+    // Toggle Favorite
+    function toggleFavorite(noradId) {
+      if (favorites.includes(noradId)) favorites = favorites.filter(id => id !== noradId);
+      else favorites.push(noradId);
+      localStorage.setItem('favorites', JSON.stringify(favorites));
+      updateSatellites();
+    }
+
+    // Log Alerts
+    function logAlert(message) {
+      const log = document.getElementById('alertLog');
+      log.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
+      log.scrollTop = log.scrollHeight;
+    }
+
+    // Full-Screen Toggle
+    function toggleFullScreen() {
+      const elem = document.getElementById('mapContainer');
+      if (!document.fullscreenElement) {
+        elem.requestFullscreen().catch(err => alert(`Error: ${err.message}`));
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    // Screenshot Map
+    function screenshotMap() {
+      if (currentView === '2D') {
+        html2canvas(map2D.getContainer()).then(canvas => {
+          const link = document.createElement('a');
+          link.download = 'map_screenshot.png';
+          link.href = canvas.toDataURL();
+          link.click();
+        });
+      } else {
+        viewer3D.render();
+        const dataUrl = viewer3D.canvas.toDataURL();
+        const link = document.createElement('a');
+        link.download = 'globe_screenshot.png';
+        link.href = dataUrl;
+        link.click();
+      }
+    }
+
+    // Toggle Layer (Placeholder)
+    function toggleLayer(layer) {
+      logAlert(`Toggled ${layer} layer`);
+    }
+
+    // Initial Setup
+    switchView('3D');
+    updateSatellites();
+  </script>
+</body>
+</html>
