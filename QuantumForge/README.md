@@ -123,8 +123,8 @@ All second-stage logic executes entirely in memory.
 
 Polyglot payloads will open as JPEGs when inspected by analysts or tools.
 
----
-##🧨 Warning
+
+## 🧨 Warning
 This project is a powerful binary obfuscation and delivery framework.
 Do not use it without legal authorization. Abuse will not be tolerated or supported.
 
