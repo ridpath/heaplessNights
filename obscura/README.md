@@ -1,4 +1,4 @@
-# 🛰 Obscura Orchestrator
+# 🛰 Obscura 
 
 > ⚠️ **Alpha Release** — unstable features, experimental modules, and active development. Use in controlled/CTF/lab environments only.
 
