@@ -1,103 +1,149 @@
-# Obscura
+# 🛰 Obscura Orchestrator
 
-Obscura is a signal jamming tool. It provides capabilities to detect and jam Wi-Fi cameras, Bluetooth devices, and entire networks using techniques like deauthentication and SDR jamming with HackRF. Written in Python, it features a rich terminal-based UI for real-time monitoring and control.
+> ⚠️ **Alpha Release** — unstable features, experimental modules, and active development. Use in controlled/CTF/lab environments only.
 
-## Features
-- **Camera Jamming**: Detects and jams Wi-Fi cameras based on MAC address OUIs and traffic patterns.
-- **Bluetooth Jamming**: Disrupts Bluetooth signals.
-- **Network Deauthentication**: Performs deauth attacks on Wi-Fi networks, with support for Management Frame Protection (MFP) bypass using `mdk4`.
-- **SDR Jamming**: Uses HackRF for broad-spectrum jamming.
-- **Rich UI**: Displays detected devices, jamming status, and logs in a terminal interface.
+**Obscura** is an autonomous, extensible adversarial operations framework designed for CTF teams, red teams, and research into next-generation cyber-physical attack vectors.
 
-## Installation
+Built to bridge classic wireless attacks, SDR interference, IoT disruption, BLE exploitation, satellite spoofing, and AI-driven adversary simulation — all under a unified orchestration layer.
 
-### Prerequisites
-Obscura requires root privileges and specific system tools, typically available on Kali Linux or similar distributions.
 
-#### System Dependencies
-Install the required tools on Kali Linux:
-```bash
-sudo apt-get update
-sudo apt-get install iw macchanger bluez aircrack-ng hackrf mdk4 libpcap0.8t64
-aircrack-ng includes airmon-ng and aireplay-ng.
+##  WARNING: This tool is for educational and authorized testing purposes only. Unauthorized use on networks, systems, or frequencies you do not own or have explicit permission to test is illegal and unethical. Use only in controlled environments like Faraday cages or with proper authorization. The developers are not responsible for any misuse or damage caused by this tool.
 
-hackrf includes hackrf_transfer.
 
-bluez provides hciconfig.
 
-libpcap0.8t64 is required for packet capture.
+## 🚀 Key Features
 
-Verify HackRF connectivity (if using SDR jamming):
-hackrf_info
+| Module                | Capability                                                                 |
+|----------------------|-----------------------------------------------------------------------------|
+| 📶 Wi-Fi Attacks       | Deauth, Rogue AP, Evil Twin, Hybrid Deauth                                 |
+| 🎥 Camera Attacks     | RTSP injection, MJPEG spoof, deepfake replay, fingerprinting               |
+| 🔊 BLE/Bluetooth      | Disruption, LLM-based fuzzing, HID spoof, audio replay                     |
+| 📡 SDR/Radio          | BLE jamming, GPS spoof, RF replay, ADS-B broadcast                         |
+| 🤖 AI/LLM Modules     | AutoRedTeam, Cognitive Dissonance Engine, Predictive Adversary             |
+| 🛰 Satellite Modules   | GNSS spoofing, satellite tracking, DVB stream hijack, Iridium analysis     |
+| 🧬 Multi-Protocol     | MITM chaining, replay amplification, synthetic sensor injections           |
+| 📉 Attack Graphing    | Auto-generates DOT/SVG attack chain graphs from logs                       |
+| 💻 Live Interaction   | Launch Python shell into orchestrator context                              |
 
-Python Dependencies
-Create and activate a virtual environment (recommended):
-bash
+---
 
-python3 -m venv jammer_venv
-source jammer_venv/bin/activate
+## 🧪 Status: Alpha Release
 
-Install Python packages:
-bash
+> This framework is under **active development**. Some features may be broken, incomplete, or require external dependencies.
 
-pip install -r requirements.txt
+Known limitations:
 
-Usage
-Run Obscura with root privileges, specifying a wireless interface (e.g., wlan0):
-bash
+- Some attacks assume files exist at hardcoded paths (e.g., `/tmp/gan_live.mp4`)
+- BLE/Bluetooth fuzzing may crash systems with fragile drivers
+- Deep chaining assumes strict interface setup (`monitor` mode, firmware-specific tools)
+- SDR attacks assume presence of `hackrf_transfer`, `gps-sdr-sim`, `rtl_power`, etc.
+- No input validation for plugin APIs — plugins can fail silently
 
-sudo python3 obscura.py --interface wlan0
+Use in safe, **controlled lab/CTF environments** only.
 
-Or, make the script executable:
-bash
+---
 
-chmod +x obscura.py
-sudo ./obscura.py --interface wlan0
+## 🧩 Plugin-Based Architecture
+
+The orchestrator supports dynamic plugin loading:
+
+```python
+orchestrator.load_plugin("advanced_attacks")
+orchestrator.load_all_plugins()
 ```
+## ⚙️ Getting Started
+1. Install Dependencies
+Run from the project root:
+   ```bash
+pip install -e .[full]
+   ```
+2. Run the Orchestrator
+If you installed using pyproject.toml, launch via:
+   ```bash
+obscura
+   ```
+Or with full path (e.g. pyenv):
+   ```bash
+sudo -E /home/kali/.pyenv/versions/3.11.9/bin/obscura
+   ```
+✅ sudo -E preserves your environment variables
 
-## Controls
-1: Toggle Camera Jamming (targets detected cameras).
+## 🤝 Contributing
 
-2: Toggle Bluetooth Jamming (sends random Bluetooth packets).
+Contributions are welcome! To get started, follow these steps:
 
-3: Toggle Deauth Everything (attacks the strongest network for 2 minutes).
+1. **Fork the Repository**  
+   Click the "Fork" button in the top right of this page to copy the repo to your GitHub account. Then, clone your fork to your local machine:  
 
-4: Toggle SDR Jamming (jams with HackRF for 5 minutes).
+   ```bash
+   git clone https://github.com/ridpath/obscura/obscura.git
+   cd obscura
+   ```
 
-~: Enter Live Python Shell (for debugging or customization; type exit() to return).
+2. **Create a Feature Branch**  
+   Create a new branch for your feature or bug fix:  
 
-n/p: Next/Previous Page (for camera and network tables).
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+Make Your Changes
+Add new attacks, improve existing modules, or fix bugs.  
+Please follow the existing coding style (e.g., snake_case, include docstrings).  
 
-q: Quit the application.
+Keep attack modules modular and self-contained.
 
-Jamming Modes
-Camera Jamming: Continuously sends deauth packets to detected camera MACs.
+Test Your Changes
+Ensure your changes:  
+Do not break existing features.  
 
-Bluetooth Jamming: Sends random L2CAP packets via hci0.
+Work with optional module loaders (e.g., load_gnuradio(), load_cv2()).  
 
-Network Deauthentication: Targets a network’s BSSID and clients; uses mdk4 for MFP-enabled networks.
+Are stable when run via AttackOrchestrator.
 
-SDR Jamming: Transmits noise on a network’s channel using HackRF.
+Commit & Push
+Commit your changes with a descriptive message and push to your fork:  
 
-Example Output
-Upon running, the UI displays:
-Detected Cameras: MAC, SSID, vendor, jamming status, etc.
+   ```bash
+   git add .
+git commit -m "Add: New BLE spoof attack module"
+git push origin feature/your-feature-name
+   ```
+Submit a Pull Request
+Open a Pull Request (PR) on GitHub and include:  
+A summary of what you added or changed.  
 
-Wi-Fi Networks: BSSID, SSID, signal strength, channel, MFP status.
+The modules affected.  
 
-Stats: Packet counts, jamming status, uptime.
+Testing status (e.g., "Tested on Ubuntu with HackRF").  
 
-Progress: Real-time jamming feedback.
+Any dependencies or setup notes.
 
-Notes
-The script auto-detects interfaces if --interface is omitted.
 
-Logs are saved to jammer_log.txt in the script’s directory.
+###  Coding Standards
+Please adhere to these conventions:  
+Modular Attacks: Register new attack vectors using self.register_attack(...).  
 
-Requires monitor mode; the script attempts to enable it automatically.
+Threading: Use threading.Thread or subprocess.Popen for long-running tasks.  
+
+Dynamic Imports: Load heavy libraries dynamically (e.g., load_cv2(), load_gnuradio()).  
+
+Hardcoding: Avoid hardcoding values unless necessary for testing.  
+
+Comments: Add detailed comments for complex logic, especially RF or GNU Radio operations.
+
+###  Adding New Plugins
+To add a new attack plugin:  
+Place your file in attack_plugins/your_attack.py.  
+
+Expose a run(...) method or register the attack via the AttackOrchestrator.  
+
+Use log_message() and self.attack_log.append(...) to document actions and results.
+
+## License
+This project is licensed under the MIT License. See the LICENSE file for details.
 
 ## Disclaimer
-Obscura is intended for educational and authorized testing purposes only. Jamming signals may be illegal in some jurisdictions. Use responsibly and only in environments where you have explicit permission.
+Obscura is intended solely for educational purposes and authorized penetration testing in controlled environments. Unauthorized use on live systems, networks, or RF frequencies without explicit permission is illegal and unethical. Always comply with local laws and regulations, including FCC guidelines for RF transmissions. The developers disclaim any liability for misuse or resulting damages.
 
 
 
