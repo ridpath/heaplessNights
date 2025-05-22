@@ -54,18 +54,18 @@ orchestrator.load_all_plugins()
 ## ⚙️ Getting Started
 1. Install Dependencies
 Run from the project root:
-   ```bash
-pip install -e .[full]
-   ```
+
+pip install -e .
+
 2. Run the Orchestrator
 If you installed using pyproject.toml, launch via:
-   ```bash
+
 obscura
-   ```
+
 Or with full path (e.g. pyenv):
-   ```bash
+
 sudo -E /home/kali/.pyenv/versions/3.11.9/bin/obscura
-   ```
+
 ✅ sudo -E preserves your environment variables
 
 ## 🤝 Contributing
