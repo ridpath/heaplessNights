@@ -1,0 +1,22 @@
+{
+    "ring": {
+        "ssid_patterns": ["^Ring-", "^Ring_", "Camera-[A-F0-9]{4}$"],
+        "entropy_threshold": 7.0,
+        "entropy_score": 20,
+        "dns_hosts": ["ring\\.com", "api\\.ring\\.com", "amazonaws\\.com"],
+        "dns_score": 25,
+        "mac_score": 80,
+        "interval_range": [0.9, 1.1],
+        "interval_score": 15
+    },
+    "ezviz": {
+        "ssid_patterns": ["EZVIZ.*", "CAM.*"],
+        "entropy_threshold": 7.0,
+        "entropy_score": 15,
+        "dns_hosts": ["ezvizlife\\.com", "api\\.ezviz\\.com"],
+        "dns_score": 20,
+        "mac_score": 75,
+        "interval_range": [0.8, 1.2],
+        "interval_score": 10
+    }
+}
