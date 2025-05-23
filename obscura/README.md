@@ -11,23 +11,23 @@ Built to bridge classic wireless attacks, SDR interference, IoT disruption, BLE 
 
 
 
-## 🚀 Key Features
+## Key Features
 
 | Module                | Capability                                                                 |
 |----------------------|-----------------------------------------------------------------------------|
-| 📶 Wi-Fi Attacks       | Deauth, Rogue AP, Evil Twin, Hybrid Deauth                                 |
-| 🎥 Camera Attacks     | RTSP injection, MJPEG spoof, deepfake replay, fingerprinting               |
-| 🔊 BLE/Bluetooth      | Disruption, LLM-based fuzzing, HID spoof, audio replay                     |
-| 📡 SDR/Radio          | BLE jamming, GPS spoof, RF replay, ADS-B broadcast                         |
-| 🤖 AI/LLM Modules     | AutoRedTeam, Cognitive Dissonance Engine, Predictive Adversary             |
-| 🛰 Satellite Modules   | GNSS spoofing, satellite tracking, DVB stream hijack, Iridium analysis     |
-| 🧬 Multi-Protocol     | MITM chaining, replay amplification, synthetic sensor injections           |
-| 📉 Attack Graphing    | Auto-generates DOT/SVG attack chain graphs from logs                       |
-| 💻 Live Interaction   | Launch Python shell into orchestrator context                              |
+| Wi-Fi Attacks       | Deauth, Rogue AP, Evil Twin, Hybrid Deauth                                 |
+| Camera Attacks     | RTSP injection, MJPEG spoof, deepfake replay, fingerprinting               |
+| BLE/Bluetooth      | Disruption, LLM-based fuzzing, HID spoof, audio replay                     |
+| SDR/Radio          | BLE jamming, GPS spoof, RF replay, ADS-B broadcast                         |
+| AI/LLM Modules     | AutoRedTeam, Cognitive Dissonance Engine, Predictive Adversary             |
+| Satellite Modules   | GNSS spoofing, satellite tracking, DVB stream hijack, Iridium analysis     |
+| Multi-Protocol     | MITM chaining, replay amplification, synthetic sensor injections           |
+| Attack Graphing    | Auto-generates DOT/SVG attack chain graphs from logs                       |
+| Live Interaction   | Launch Python shell into orchestrator context                              |
 
 ---
 
-## 🧪 Status: Alpha Release
+## Status: Alpha Release
 
 > This framework is under **active development**. Some features may be broken, incomplete, or require external dependencies.
 
@@ -43,7 +43,7 @@ Use in safe, **controlled lab/CTF environments** only.
 
 ---
 
-## 🧩 Plugin-Based Architecture
+## Plugin-Based Architecture
 
 The orchestrator supports dynamic plugin loading:
 
@@ -51,7 +51,7 @@ The orchestrator supports dynamic plugin loading:
 orchestrator.load_plugin("advanced_attacks")
 orchestrator.load_all_plugins()
 ```
-## ⚙️ Getting Started
+## Getting Started
 1. Install Dependencies
 Run from the project root:
 
@@ -144,6 +144,4 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ## Disclaimer
 Obscura is intended solely for educational purposes and authorized penetration testing in controlled environments. Unauthorized use on live systems, networks, or RF frequencies without explicit permission is illegal and unethical. Always comply with local laws and regulations, including FCC guidelines for RF transmissions. The developers disclaim any liability for misuse or resulting damages.
-
-
 
