@@ -4,7 +4,7 @@ This Python script is a post-exploitation utility designed for penetration teste
 
 ---
 
-## 🚀 Use Case
+## Use Case
 
 When Jenkins is compromised, attackers can access the following:
 
@@ -20,17 +20,17 @@ This script decrypts those credential entries, including:
 
 ---
 
-## 🔎 Features
+## Features
 
-- 🔁 Automatically sets up a local Python virtual environment  
-- 🧠 Supports both old (ECB) and new (CBC) AES encryption formats  
-- 💬 Interactive mode for manual decryption  
-- 📂 Batch decryption of full `credentials.xml` files  
-- 🧼 Handles base64 decoding and PKCS#7 unpadding  
+- Automatically sets up a local Python virtual environment  
+- Supports both old (ECB) and new (CBC) AES encryption formats  
+- Interactive mode for manual decryption  
+- Batch decryption of full `credentials.xml` files  
+- Handles base64 decoding and PKCS#7 unpadding  
 
 ---
 
-## 📦 Dependencies
+## Dependencies
 
 - Python 3.6+  
 - [`pycryptodome`](https://pypi.org/project/pycryptodome/) *(auto-installed inside a `.venv`)*
@@ -46,13 +46,13 @@ python3 decrypt.py master.key hudson.util.Secret credentials.xml
 # OR interactive mode
 python3 decrypt.py -i /var/lib/jenkins/
 
-📁 Typical Jenkins Paths
+Typical Jenkins Paths
 File	Path
 master.key	/var/lib/jenkins/secrets/master.key
 hudson.util.Secret	/var/lib/jenkins/secrets/hudson.util.Secret
 credentials.xml	/var/lib/jenkins/credentials.xml
 
-🧠 Pentesting Context
+Pentesting Context
 This tool is ideal for red team post-exploitation during:
 
 CI/CD pipeline credential extraction
