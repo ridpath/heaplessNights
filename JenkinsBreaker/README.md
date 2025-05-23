@@ -3,7 +3,7 @@ An Advanced Python Offensive Security Framework for Jenkins Exploitation in CTF 
 
 ---
 
-## 🚀 Features  
+## Features  
 
 - ✅ **Automated Enumeration & Exploitation** (`--auto` mode)  
 - ✅ **Exploit Critical CVEs**:  
@@ -24,13 +24,13 @@ An Advanced Python Offensive Security Framework for Jenkins Exploitation in CTF 
 
 ## 📅 Coming Soon (Planned Features)  
 
-- 🖥️ **Full Visual Interface** (TUI & Web UI) using *textual* and *fastapi*  
-- 🎯 **Enhanced Plugin Fuzzer** with *ML-Based Misconfiguration Detection*  
-- 📊 **Interactive Dashboards** for Exploit Results and Reporting  
+- 🖥**Full Visual Interface** (TUI & Web UI) using *textual* and *fastapi*  
+- **Enhanced Plugin Fuzzer** with *ML-Based Misconfiguration Detection*  
+- **Interactive Dashboards** for Exploit Results and Reporting  
 
 ---
 
-## 📦 Installation  
+## Installation  
 
 ```bash
 git clone https://github.com/ridpath/heaplessNights.git
@@ -51,7 +51,7 @@ python3 JenkinsBreaker.py --generate-shell bash --lhost YOUR_IP --lport 4444
 List All Available Commands:
 python3 JenkinsBreaker.py --help-commands
 ```
-## 📖 Note
+## Note
 This tool is under active development. A full-fledged UI will soon make managing exploits and post-exploitation workflows more intuitive. Stay tuned for upcoming releases!
 Working through multiple bugs.
 
