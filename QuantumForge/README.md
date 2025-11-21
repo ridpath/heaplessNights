@@ -124,11 +124,11 @@ All second-stage logic executes entirely in memory.
 Polyglot payloads will open as JPEGs when inspected by analysts or tools.
 
 
-## 🧨 Warning
+## Warning
 Do not use it without legal authorization. Abuse will not be tolerated or supported.
 
 ---
-## 📜 License
+## License
 MIT License for research and educational use.
 
 
