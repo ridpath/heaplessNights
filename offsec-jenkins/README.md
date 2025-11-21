@@ -1,4 +1,4 @@
-# 🔐 Jenkins Credential Decryptor
+# Jenkins Credential Decryptor
 
 This Python script is a post-exploitation utility designed for penetration testers and red team operators to decrypt stored Jenkins credentials **offline**. It recovers plaintext secrets from Jenkins `credentials.xml` using the `master.key` and `hudson.util.Secret` files.
 
@@ -37,7 +37,7 @@ This script decrypts those credential entries, including:
 
 ---
 
-## 🛠️ Example Usage
+## Example Usage
 
 ```bash
 python3 decrypt.py /var/lib/jenkins/
@@ -63,11 +63,11 @@ Reconnaissance on DevOps/infra assets
 
 Token harvesting (e.g., AWS, GitHub, cloud APIs)
 
-⚠️ Legal Notice
+Legal Notice
 Use only on systems you have explicit permission to test.
 This tool is for educational and authorized security assessments only.
 
-🙏 Attribution
+Attribution
 Portions of the decryption logic are based on the excellent research and code from
 gquere/pwn_jenkins.
 This version has been significantly adapted and extended for modern post-exploitation workflows.
