@@ -1,147 +1,132 @@
-# 🛰 Obscura 
+<!--
+Obscura cyber attack framework, AI-powered adversary automation, red team RF toolkit,
+BLE exploit framework, Wi-Fi deauth tool, SDR jamming tool, GNSS spoofing tool,
+ADS-B broadcast manipulation, satellite cyber attack simulation, AI auto-pwn orchestrator,
+CTF cyber physical attack platform, IoT disruption offensive toolkit, multi-protocol MITM,
+AI-driven exploit automation, offensive wireless security suite, advanced RF exploitation lab,
+hackrf gnuradio cybersecurity, predictive adversary model, cyber autonomy toolchain,
+security red team research tools, cyber-physical system exploitation,
+experimental cyber weapons research for authorized labs,
+extensible cyber attack plugins, covert sensor injection toolkit,
+radio hacking automation, synthetic sensor generation attacks, github.com/ridpath, rf-hacking, sdr-exploitation, ai-security, iot-security,
+ble-hacking, gps-spoofing, adsb-security, wireless-attacks,
+offensive-security, cyber-physical-security, red-team-tool
 
-> ⚠️ **Alpha Release** — unstable features, experimental modules, and active development. Use in controlled/CTF/lab environments only.
+-->
 
-**Obscura** is an autonomous, extensible adversarial operations framework designed for CTF teams, red teams, and research into next-generation cyber-physical attack vectors.
+# Obscura - Autonomous Multi-Vector Adversarial Framework
+
+![Status: Alpha](https://img.shields.io/badge/status-alpha-yellow)
+![Stability: Experimental](https://img.shields.io/badge/stability-experimental-orange)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue)
+![Domain: RF/IoT/AI](https://img.shields.io/badge/domain-RF%20%7C%20IoT%20%7C%20AI-critical)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+
+> Alpha release - **unstable**, highly experimental modules  
+> Use ONLY in authorized **Faraday cages**, RF controlled labs, or CTF exercises
+
+
+## What is Obscura?
+
+Obscura is an autonomous **adversarial orchestration engine** combining traditional wireless exploitation, satellite spoofing, IoT disruption, SDR interference, and **AI driven decision making** into a single modular system.
 
 Built to bridge classic wireless attacks, SDR interference, IoT disruption, BLE exploitation, satellite spoofing, and AI-driven adversary simulation — all under a unified orchestration layer.
 
 
-##  WARNING: This tool is for educational and authorized testing purposes only. Unauthorized use on networks, systems, or frequencies you do not own or have explicit permission to test is illegal and unethical. Use only in controlled environments like Faraday cages or with proper authorization. The developers are not responsible for any misuse or damage caused by this tool.
+Targeted for:
 
+• Red/Purple Team cyber ranges  
+• Drone & satellite attack simulation  
+• Wireless/IoT security labs  
+• Future cyber-physical warfare research (legal only)
 
+## Core Capabilities
 
-## Key Features
-
-| Module                | Capability                                                                 |
-|----------------------|-----------------------------------------------------------------------------|
-| Wi-Fi Attacks       | Deauth, Rogue AP, Evil Twin, Hybrid Deauth                                 |
-| Camera Attacks     | RTSP injection, MJPEG spoof, deepfake replay, fingerprinting               |
-| BLE/Bluetooth      | Disruption, LLM-based fuzzing, HID spoof, audio replay                     |
-| SDR/Radio          | BLE jamming, GPS spoof, RF replay, ADS-B broadcast                         |
-| AI/LLM Modules     | AutoRedTeam, Cognitive Dissonance Engine, Predictive Adversary             |
-| Satellite Modules   | GNSS spoofing, satellite tracking, DVB stream hijack, Iridium analysis     |
-| Multi-Protocol     | MITM chaining, replay amplification, synthetic sensor injections           |
-| Attack Graphing    | Auto-generates DOT/SVG attack chain graphs from logs                       |
-| Live Interaction   | Launch Python shell into orchestrator context                              |
-
----
-
-## Status: Alpha Release
-
-> This framework is under **active development**. Some features may be broken, incomplete, or require external dependencies.
-
-Known limitations:
-
-- Some attacks assume files exist at hardcoded paths (e.g., `/tmp/gan_live.mp4`)
-- BLE/Bluetooth fuzzing may crash systems with fragile drivers
-- Deep chaining assumes strict interface setup (`monitor` mode, firmware-specific tools)
-- SDR attacks assume presence of `hackrf_transfer`, `gps-sdr-sim`, `rtl_power`, etc.
-- No input validation for plugin APIs — plugins can fail silently
-
-Use in safe, **controlled lab/CTF environments** only.
+| Module | Description |
+|--------|-------------|
+| Wi-Fi Attacks | Deauth, Rogue AP, Evil Twin, Hybrid ML bypass |
+| Camera Exploits | RTSP hijack, MJPEG spoof, **deepfake operator feed** |
+| BLE/Bluetooth | Disruption, HID spoof, **LLM fuzzing** modules |
+| SDR/Radio | GPS spoof, ADS-B interference, RF replay tools |
+| AI/LLM Stack | **Auto adversary reasoning**, strategy ranking |
+| Satellite Exploits | GNSS & DVB spoofing, orbit-aware targeting |
+| Attack Graphing | DOT/SVG chain mapping with intelligence scoring |
+| Live Shell | Interactive operator shell w/ real-time plugin control |
 
 ---
+## Legal & Operational Safety
 
-## Plugin-Based Architecture
+You **must** have explicit written authorization to use Obscura.  
+RF emissions can be **illegal**, **dangerous**, or **air traffic impacting**.
 
-The orchestrator supports dynamic plugin loading:
+Obscura is intended for:
+
+• RF-isolated labs  
+• Authorized cyber defense research  
+• CTF and academic work  
+• Threat modeling exercises
+
+Developers assume **zero liability** for misuse.
+---
+## Plugin-Based Attack Architecture
+
+Plugins register into the orchestrator at runtime:
 
 ```python
 orchestrator.load_plugin("advanced_attacks")
 orchestrator.load_all_plugins()
 ```
+Attack plugins located in:
+
+- `attack_plugins/`  
+- Must expose: `run(context)` or `register_attack()`
+---
 ## Getting Started
-1. Install Dependencies
-Run from the project root:
 
+1. Install requirements:
+
+```bash
 pip install -e .
+```
 
-2. Run the Orchestrator
+2. Launch the orchestrator:
+
 If you installed using pyproject.toml, launch via:
 
 obscura
 
 Or with full path (e.g. pyenv):
-
+```bash
 sudo -E /home/kali/.pyenv/versions/3.11.9/bin/obscura
 
-✅ sudo -E preserves your environment variables
+sudo -E preserves your environment variables
+```
+3️. Test RF modules individually before chaining
+(e.g., monitor mode, HackRF drivers, GNURadio support)
 
-## 🤝 Contributing
-
-Contributions are welcome! To get started, follow these steps:
-
-1. **Fork the Repository**  
-   Click the "Fork" button in the top right of this page to copy the repo to your GitHub account. Then, clone your fork to your local machine:  
-
-   ```bash
-   git clone https://github.com/ridpath/obscura/obscura.git
-   cd obscura
-   ```
-
-2. **Create a Feature Branch**  
-   Create a new branch for your feature or bug fix:  
-
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-Make Your Changes
-Add new attacks, improve existing modules, or fix bugs.  
-Please follow the existing coding style (e.g., snake_case, include docstrings).  
-
-Keep attack modules modular and self-contained.
-
-Test Your Changes
-Ensure your changes:  
-Do not break existing features.  
-
-Work with optional module loaders (e.g., load_gnuradio(), load_cv2()).  
-
-Are stable when run via AttackOrchestrator.
-
-Commit & Push
-Commit your changes with a descriptive message and push to your fork:  
-
-   ```bash
-   git add .
-git commit -m "Add: New BLE spoof attack module"
-git push origin feature/your-feature-name
-   ```
-Submit a Pull Request
-Open a Pull Request (PR) on GitHub and include:  
-A summary of what you added or changed.  
-
-The modules affected.  
-
-Testing status (e.g., "Tested on Ubuntu with HackRF").  
-
-Any dependencies or setup notes.
-
-
-###  Coding Standards
-Please adhere to these conventions:  
-Modular Attacks: Register new attack vectors using self.register_attack(...).  
-
-Threading: Use threading.Thread or subprocess.Popen for long-running tasks.  
-
-Dynamic Imports: Load heavy libraries dynamically (e.g., load_cv2(), load_gnuradio()).  
-
-Hardcoding: Avoid hardcoding values unless necessary for testing.  
-
-Comments: Add detailed comments for complex logic, especially RF or GNU Radio operations.
-
-###  Adding New Plugins
-To add a new attack plugin:  
-Place your file in attack_plugins/your_attack.py.  
-
-Expose a run(...) method or register the attack via the AttackOrchestrator.  
-
-Use log_message() and self.attack_log.append(...) to document actions and results.
+---
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for details.
 
 ## Disclaimer
 Obscura is intended solely for educational purposes and authorized penetration testing in controlled environments. Unauthorized use on live systems, networks, or RF frequencies without explicit permission is illegal and unethical. Always comply with local laws and regulations, including FCC guidelines for RF transmissions. The developers disclaim any liability for misuse or resulting damages.
+
+<!--
+Advanced cyber-physical attack toolkit, wireless hacking framework, AI red team automation,
+GPS spoofing scripts, RF jamming python, satellite spoofing tools, BLE exploit research,
+ADS-B hacking, drone manipulation security testing, cognitive attack chain orchestration,
+multi-vector cyber attack chaining, predictive adversary simulation engine,
+SDR cyber lab testing toolkit, IoT sensor false data injection,
+WiFi evil twin orchestrator, autonomous exploit delivery system,
+cyber autonomy proof-of-concept, defense research lab tooling,
+penetration testing RF frequencies, experimental red team modules,
+satellite tracking security testing, Deepfake camera injection,
+cybersecurity research tool RF IoT, AI-based fuzzing wireless,
+advanced offensive security research platform, ridpath github, rf-hacking, sdr-exploitation, ai-security, iot-security,
+ble-hacking, gps-spoofing, adsb-security, wireless-attacks,
+offensive-security, cyber-physical-security, red-team-tool
+
+-->
+
 
