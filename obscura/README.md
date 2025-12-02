@@ -21,6 +21,11 @@ offensive-security, cyber-physical-security, red-team-tool
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 ![Domain: RF/IoT/AI](https://img.shields.io/badge/domain-RF%20%7C%20IoT%20%7C%20AI-critical)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![HackRF support](https://img.shields.io/badge/HackRF-Supported-success)
+![RTL--SDR support](https://img.shields.io/badge/RTL--SDR-Optional-lightgrey)
+![USRP support](https://img.shields.io/badge/USRP-Research%20Only-blueviolet)
+![BladeRF support](https://img.shields.io/badge/BladeRF-Experimental-orange)
+![GPS-SDR-SIM](https://img.shields.io/badge/GPS--SDR--SIM-Integration-yellow)
 
 > Alpha release - **unstable**, highly experimental modules  
 > Use ONLY in authorized **Faraday cages**, RF controlled labs, or CTF exercises
@@ -30,7 +35,7 @@ offensive-security, cyber-physical-security, red-team-tool
 
 Obscura is an autonomous **adversarial orchestration engine** combining traditional wireless exploitation, satellite spoofing, IoT disruption, SDR interference, and **AI driven decision making** into a single modular system.
 
-Built to bridge classic wireless attacks, SDR interference, IoT disruption, BLE exploitation, satellite spoofing, and AI-driven adversary simulation — all under a unified orchestration layer.
+Built to bridge classic wireless attacks, SDR interference, IoT disruption, BLE exploitation, satellite spoofing, and AI-driven adversary simulation - all under a unified orchestration layer.
 
 
 Targeted for:
@@ -38,7 +43,7 @@ Targeted for:
 • Red/Purple Team cyber ranges  
 • Drone & satellite attack simulation  
 • Wireless/IoT security labs  
-• Future cyber-physical warfare research (legal only)
+• Future cyber & physical warfare research (legal only)
 
 ## Core Capabilities
 
@@ -49,7 +54,7 @@ Targeted for:
 | BLE/Bluetooth | Disruption, HID spoof, **LLM fuzzing** modules |
 | SDR/Radio | GPS spoof, ADS-B interference, RF replay tools |
 | AI/LLM Stack | **Auto adversary reasoning**, strategy ranking |
-| Satellite Exploits | GNSS & DVB spoofing, orbit-aware targeting |
+| Satellite Exploits | GNSS & DVB spoofing, orbit aware targeting |
 | Attack Graphing | DOT/SVG chain mapping with intelligence scoring |
 | Live Shell | Interactive operator shell w/ real-time plugin control |
 
@@ -105,7 +110,27 @@ sudo -E preserves your environment variables
 (e.g., monitor mode, HackRF drivers, GNURadio support)
 
 ---
-
+<!--
+MITRE ATT&CK ICS mapping, cyber physical attack vectors, PLC sensor spoofing,
+loss of view camera hijack, RF communications denial, satellite command spoof,
+operational technology adversary tactics, wireless access disruption T0884,
+SDR attack simulation platform, GPS deception tooling T0805, BLE protocol attack T0861,
+radio frequency cyberattacks, ICS MITRE technique coverage mapping,
+deepfake camera operator red team module, critical infrastructure DDoS avoidance,
+high fidelity ICS attack simulation for cyber defense labs
+-->
+| Technique | MITRE ID | Description | Status |
+|----------|----------|-------------|--------|
+| Wireless Network Deauth / Rogue AP | T0884 | Loss of availability via wireless disruption | Partially Supported |
+| Spoof Command Message (PLC Sensor Input) | T0855 | Malicious sensor payload injection | Partially Supported |
+| Modify Parameter (GPS / RF Injection) | T0805 | Change thresholds to affect control loops | Partially Supported |
+| Exploit Wireless Protocol | T0861 | BLE spoof + jamming | Partially Supported |
+| Jam Communication Channel | T0824 | SDR RF Denial (GPS/ADS-B) | Partially Supported |
+| Loss of View | T0829 | Camera feed spoofing / deepfake | Partially Supported |
+| Alarm Suppression | T0838 | Visual/telemetry masking on operators | Supported (Experimental) |
+| Inhibit Response Function | T0809 | Prevent safety fallback via false confidence | Partially Supported |
+| Modify Control Logic | T0880 | Targeted in future plugin roadmap | In Development |
+---
 ## License
 This project is licensed under the MIT License. See the LICENSE file for details.
 
