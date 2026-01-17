@@ -39,6 +39,11 @@ test_output.txt
 list_cves_output.txt
 test_secrets.*
 VERIFICATION_RESULTS.txt
+test_*.py
+*_test.py
+test/
+tests/
+*.test.py
 
 # Exploits and payloads (sensitive)
 payloads/*.jar
