@@ -1,58 +1,64 @@
-# 🤝 Contributing to JenkinsBreaker 🏴‍☠️
+# Contributing to JenkinsBreaker
 
-Thanks for considering contributing to **JenkinsBreaker**! We welcome community-driven development and value your time and expertise.
+## Contribution Workflow
 
----
+### 1. Fork the Repository
 
-## 📋 Contribution Workflow
+Click the Fork button and clone your fork locally:
 
-1. **Fork the Repository**  
-   - Click the `Fork` button (top right of the repo page).
-   - Clone your fork locally:
+```bash
+git clone https://github.com/your-username/heaplessNights.git
+```
 
-     ```bash
-     git clone https://github.com/your-username/heaplessNights.git
-     ```
+### 2. Create a Feature Branch
 
-2. **Create a Feature Branch**  
-   - Keep `main` clean; always branch for new features or fixes:
+Keep `main` clean; always branch for new features or fixes:
 
-     ```bash
-     git checkout -b feature/your-feature-name
-     ```
+```bash
+git checkout -b feature/your-feature-name
+```
 
-3. **Make Changes & Follow Code Style**  
-   - Use clear, descriptive variable names.  
-   - Add docstrings to functions and classes.  
-   - Ensure any new functionality includes example usage in the README if relevant.
+### 3. Code Standards
 
-4. **Test Your Code**  
-   - Verify that no existing functionality breaks.  
-   - Test new features before committing.
+- Use clear, descriptive variable names
+- Add docstrings to functions and classes
+- Update README documentation for new functionality
+- Follow PEP8 for Python code
+- Use `rich` for CLI output when applicable
+- Keep UI components and logic decoupled
+- Comment code for educational value
 
-5. **Commit & Push**
+### 4. Test Your Code
 
-   ```bash
-   git add .
-   git commit -m "✨ Add: [Brief Description of Feature or Fix]"
-   git push origin feature/your-feature-name
+- Verify existing functionality remains intact
+- Test new features before committing
+- Include example usage in documentation
 
-6. **Submit a Pull Request (PR)**
+### 5. Commit and Push
 
-Go to your fork on GitHub and click Compare & Pull Request.
+```bash
+git add .
+git commit -m "Add: [Brief Description of Feature or Fix]"
+git push origin feature/your-feature-name
+```
 
-Provide a clear title and description of your changes.
+### 6. Submit a Pull Request
 
-Tag the PR appropriately (e.g., bug, feature, enhancement).
+1. Navigate to your fork on GitHub
+2. Click Compare & Pull Request
+3. Provide clear title and description
+4. Tag appropriately (bug, feature, enhancement)
 
-7. **📚 Coding Guidelines**
-Follow PEP8 for Python code.
+## Exploit Module Guidelines
 
-Use rich for CLI output when applicable.
+When adding new exploit modules:
 
-Keep logic modular and clean—UI components and logic should stay decoupled.
+- Document in README with CVE reference
+- Log key outputs clearly
+- Include affected version information
+- Provide example usage
+- Test against vulnerable lab environment
 
-Comment your code. This tool is educational—your code may teach someone else.
+## Questions
 
-If adding an exploit or tool, document it in the README and log key outputs clearly.
-
+For questions about contribution process, open an issue with the `question` label.

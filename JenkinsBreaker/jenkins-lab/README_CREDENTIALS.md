@@ -2,15 +2,15 @@
 
 ## Overview
 
-The Jenkins Lab Docker setup allows you to **specify your own credentials** instead of using hardcoded defaults.
+The Jenkins Lab Docker setup allows credential specification instead of using hardcoded defaults.
 
 ## Default Credentials (Testing Only)
 
-If you don't specify custom credentials, the lab uses:
+Without custom configuration, the lab uses:
 - **Username**: `admin`
 - **Password**: `admin`
 
-**⚠️ WARNING**: These are insecure defaults for testing purposes only. Always change them for any non-local usage.
+**WARNING**: These are insecure defaults for local testing only. Change credentials for any non-isolated usage.
 
 ---
 
@@ -18,7 +18,7 @@ If you don't specify custom credentials, the lab uses:
 
 ### Method 1: Environment Variables (Recommended)
 
-Edit `docker-compose.yml` and uncomment/modify the environment variables:
+Edit `docker-compose.yml` and modify the environment variables:
 
 ```yaml
 environment:
@@ -26,7 +26,7 @@ environment:
   - JENKINS_ADMIN_PASS=strongpassword123
 ```
 
-Then start Jenkins:
+Start Jenkins:
 ```bash
 docker-compose up -d
 ```
@@ -52,31 +52,31 @@ docker run -d \
 
 ### Method 3: .env File
 
-Create a `.env` file in the `jenkins-lab` directory:
+Create `.env` file in the `jenkins-lab` directory:
 
 ```bash
 JENKINS_ADMIN_USER=myuser
 JENKINS_ADMIN_PASS=strongpassword123
 ```
 
-Docker Compose will automatically load these variables.
+Docker Compose automatically loads these variables.
 
 ---
 
 ## Verification
 
-After starting Jenkins, check the logs:
+Check logs after starting Jenkins:
 
 ```bash
 docker logs jenkins-lab
 ```
 
-You should see:
+Expected output with custom credentials:
 ```
 Jenkins configured with admin user: myuser
 ```
 
-If using default credentials, you'll also see:
+With default credentials:
 ```
 WARNING: Using default admin/admin credentials - CHANGE IN PRODUCTION!
 ```
@@ -85,40 +85,40 @@ WARNING: Using default admin/admin credentials - CHANGE IN PRODUCTION!
 
 ## Security Best Practices
 
-1. **Never use admin/admin in production**
-2. **Use strong passwords** (12+ characters, mixed case, numbers, symbols)
-3. **Change credentials after initial setup** via Jenkins UI
-4. **Enable additional authentication** (LDAP, SSO, etc.) for production
-5. **Restrict network access** to Jenkins (firewall, VPN, etc.)
+1. Never use admin/admin in production environments
+2. Use strong passwords (12+ characters, mixed case, numbers, symbols)
+3. Change credentials after initial setup via Jenkins UI
+4. Enable additional authentication (LDAP, SSO) for production
+5. Restrict network access to Jenkins (firewall, VPN)
 
 ---
 
 ## Accessing Jenkins
 
-1. Start the lab:
-   ```bash
-   docker-compose up -d
-   ```
+Start the lab:
+```bash
+docker-compose up -d
+```
 
-2. Access Jenkins at http://localhost:8080
+Access Jenkins at http://localhost:8080
 
-3. Log in with your configured credentials (or admin/admin if defaults)
+Log in with configured credentials (or admin/admin if using defaults)
 
-4. Configure additional security settings in **Manage Jenkins** → **Configure Global Security**
+Configure additional security in **Manage Jenkins** → **Configure Global Security**
 
 ---
 
 ## Credential Management for Testing
 
-Once logged in, you can add test credentials for decryption testing:
+After login, add test credentials for decryption validation:
 
-1. Go to **Manage Jenkins** → **Manage Credentials**
+1. Navigate to **Manage Jenkins** → **Manage Credentials**
 2. Click **(global)** domain
 3. Click **Add Credentials**
-4. Add various credential types:
-   - **Username with password** (for basic auth)
-   - **Secret text** (for API tokens, AWS keys, GitHub tokens)
-   - **SSH Username with private key** (for SSH keys)
+4. Add credential types:
+   - **Username with password** (basic auth)
+   - **Secret text** (API tokens, AWS keys, GitHub PATs)
+   - **SSH Username with private key** (SSH keys)
 
 5. Extract files for decryption testing:
    ```bash
@@ -142,10 +142,10 @@ Once logged in, you can add test credentials for decryption testing:
 
 ### Cannot Login with Custom Credentials
 
-If you set `JENKINS_ADMIN_USER` but still can't log in:
+If `JENKINS_ADMIN_USER` is set but login fails:
 
 1. Check logs: `docker logs jenkins-lab`
-2. Ensure variables are set in docker-compose.yml
+2. Verify variables in docker-compose.yml
 3. Recreate container:
    ```bash
    docker-compose down -v
@@ -157,14 +157,15 @@ If you set `JENKINS_ADMIN_USER` but still can't log in:
 ```bash
 docker-compose down -v
 docker-compose up -d
-# Now uses admin/admin again
 ```
+
+Lab now uses admin/admin again.
 
 ---
 
 ## Example: CTF/Training Setup
 
-For a training environment with custom credentials:
+Training environment with custom credentials:
 
 **docker-compose.yml**:
 ```yaml
@@ -185,7 +186,7 @@ docker-compose up -d
 
 **Exploit and decrypt**:
 ```bash
-# Use JenkinsBreaker with your credentials
+# Use JenkinsBreaker with credentials
 python JenkinsBreaker.py --url http://localhost:8080 \
                          --username ctfplayer \
                          --password 'training2024!' \
@@ -200,10 +201,10 @@ python decrypt.py --path extracted_files --reveal-secrets
 
 ## Summary
 
-✅ **Credentials are configurable** via environment variables  
-✅ **No hardcoded admin/admin enforcement**  
-✅ **Defaults exist for convenience** (with warnings)  
-✅ **Multiple configuration methods** (compose, CLI, .env file)  
-✅ **Security warnings** when using weak defaults  
+- Credentials configurable via environment variables
+- No hardcoded admin/admin enforcement
+- Defaults provided for convenience with warnings
+- Multiple configuration methods (compose, CLI, .env file)
+- Security warnings when using weak defaults
 
-Users have full control over credentials used in the Jenkins lab environment.
+Users have full control over credentials in the Jenkins lab environment.
