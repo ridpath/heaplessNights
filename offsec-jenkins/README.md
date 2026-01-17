@@ -11,81 +11,92 @@ build runner secret reconnaissance, DevOps lateral movement mapping, capture the
 
 # Jenkins Credential Decryptor
 
-Production-ready, post-exploitation utility for decrypting Jenkins credentials offline. Built for professional red teams, CTF competitors, and security researchers conducting authorized CI/CD infrastructure assessments. Zero hardcoded credentials, full Docker support, cross-platform validated.
+Offline Jenkins credential decryption tool for red teams, researchers, and CTF players. Handles credentials.xml and master.key files with no Jenkins runtime required. Docker support included, works on Linux, macOS, and WSL.
 
 ## Overview
 
-When Jenkins infrastructure is compromised, this tool recovers plaintext credentials from encrypted Jenkins storage using extracted key material. Supports both legacy (AES-ECB) and modern (AES-CBC) encryption formats.
+This tool extracts and decrypts stored Jenkins credentials using recovered encryption keys. It works with both legacy (AES-ECB) and modern (AES-CBC) encryption formats and is designed for use after CI infrastructure compromise.
 
-**Production-grade architecture**:
-- Zero hardcoded credentials or paths (user-configurable via environment variables)
-- Automatic directory discovery and resolution
-- Docker containerization for portable, isolated execution
-- Native Python fallback for maximum compatibility
-- Warning systems prevent insecure default usage
-- Cross-platform validated: Windows 10/11, WSL2, Linux, macOS
+### Highlights
+
+- No hardcoded credentials or paths — everything is configurable via environment variables  
+- Automatically locates Jenkins directories and key files  
+- Works in Docker for clean, repeatable execution  
+- Can also run natively with Python and virtualenv  
+- Warns on unsafe defaults like `admin/admin` or root execution  
+- Tested on Linux, macOS, Windows 10/11, and WSL2  
 
 ## Use Case
 
-Target files on compromised Jenkins servers:
-- `secrets/master.key` - Primary encryption key
-- `secrets/hudson.util.Secret` - Confidentiality key
-- `credentials.xml` - Encrypted credentials store
-- `jobs/*/config.xml` - Job-level secrets
-- `users/*/config.xml` - User-level credentials
+Target files typically pulled from compromised Jenkins servers:
 
-Recoverable secrets include:
-- AWS Access Keys / Secret Keys
-- GitHub Personal Access Tokens
-- API tokens (Docker, NPM, Maven)
-- SSH private keys
-- Database passwords
-- Cloud provider credentials
+- `secrets/master.key` – Main encryption key  
+- `secrets/hudson.util.Secret` – Secondary key used to generate confidentiality key  
+- `credentials.xml` – Global secrets store  
+- `jobs/*/config.xml` – Job-level secrets, often pipeline tokens  
+- `users/*/config.xml` – User-level credentials (often more privileged)  
+
+Recovered credentials may include:
+
+- AWS access keys and secrets  
+- GitHub Personal Access Tokens (PATs)  
+- DockerHub/NPM/Maven API tokens  
+- SSH private keys  
+- Database passwords  
+- Misc. cloud provider credentials  
 
 ## Features
 
-### Core Functionality
-- **Automatic virtualenv setup** - Zero manual dependency management
-- **AES-ECB decryption** - Jenkins < 2.0 legacy format
-- **AES-CBC decryption** - Jenkins >= 2.0 modern format
-- **Base64 decoding with PKCS#7 unpadding** - Full cryptographic stack
-- **Recursive directory scanning** - Batch credential file discovery
-- **True cross-platform** - Windows, Linux, macOS, WSL validated
+### Core Capabilities
 
-### Security Controls
-- **Secret redaction by default** - Prevents accidental credential exposure in logs/screenshots
-- **Dry-run mode** - Test decryption without revealing secrets
-- **Sensitive pattern detection** - Automatically identifies AWS keys, GitHub tokens, SSH keys
-- **Elevated privilege warnings** - Alerts when running with unnecessary admin/root permissions
-- **Default credential warnings** - Active warning system when test credentials are in use
+- **Virtualenv auto-setup** – Dependencies managed automatically  
+- **Decrypt AES-ECB** – Legacy format from Jenkins < 2.0  
+- **Decrypt AES-CBC** – Current format (Jenkins >= 2.0)  
+- **Base64 decode + PKCS#7 unpad** – Full crypto stack built-in  
+- **Recursive directory scan** – Handles large Jenkins home dirs  
+- **Cross-platform support** – Works on Linux, Windows, macOS, and WSL2  
 
-### Export Options
-- **JSON export** - Structured format for automation and tool integration
-- **CSV export** - Spreadsheet-compatible for reporting and analysis
-- **Overwrite protection** - Prevents accidental data loss with `--force` flag requirement
+### Security-Safe Defaults
 
-### Operational Features
-- **Interactive mode** - Manual decryption of individual secrets
-- **Batch processing** - Handle multiple credential files in single execution
-- **Comprehensive error handling** - Detailed validation and troubleshooting output
+- **Secrets redacted by default** – No accidental credential dumps in logs  
+- **Dry-run mode** – Run decryption safely without revealing anything  
+- **Pattern detection** – Flags AWS keys, GitHub tokens, SSH material  
+- **Root/admin detection** – Warns if running with unnecessary privileges  
+- **Default credential warnings** – Active check for known weak creds  
 
-### Deployment Options
-- **Docker containerization** - Isolated execution without local Python installation
-- **Native Python execution** - Direct script execution with auto-configured virtualenv
-- **Volume mount support** - Clean separation of input files and output exports
-- **Profile-based lab deployment** - Optional Jenkins Lab for testing (user-configured credentials only)
+### Output Options
+
+- **JSON export** – Easy integration with tooling or automation  
+- **CSV export** – Works well for reporting and quick triage  
+- **Overwrite protection** – Won’t overwrite export files unless `--force` is set  
+
+### Operator-Focused Features
+
+- **Interactive mode** – Manually decrypt individual secrets  
+- **Batch processing** – Supports large, automated decrypt runs  
+- **Detailed error output** – Shows what failed and why  
+
+### Run Modes
+
+- **Dockerized** – Full isolation, zero local Python requirements  
+- **Native Python** – Scripted usage with automatic `.venv` creation  
+- **Volume mounts supported** – Keeps decrypted exports separate  
+- **Jenkins Lab compatible** – Can be deployed in test labs with your own creds  
 
 ## Installation
 
 ### Requirements
 
-**Native Python**:
-- Python 3.6+ (3.11+ recommended)
-- pycryptodome (auto-installed in virtualenv)
+**To run natively (no Docker):**
 
-**Docker** (optional):
-- Docker Engine 20.10+
-- Docker Compose 1.29+ or Docker Compose v2
+- Python 3.6 or newer (Python 3.11+ recommended)  
+- `pycryptodome` (automatically installed via virtualenv on first run)  
+
+**To run with Docker:**
+
+- Docker Engine 20.10+  
+- Docker Compose v1.29+ or Docker Compose v2+  
+
 
 ### Quick Start
 
@@ -218,8 +229,6 @@ python3 decrypt.py --path /var/lib/jenkins --reveal-secrets
 ```bash
 python3 decrypt.py --path /var/lib/jenkins --dry-run
 ```
-
-### Advanced Usage
 
 #### Recursive scan for all credential files
 ```bash
