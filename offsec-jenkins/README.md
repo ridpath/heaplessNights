@@ -674,31 +674,6 @@ This version has been significantly extended with:
 
 See `LICENSE` file for details.
 
-## Version History
-
-- v2.1 - Docker and credential configuration release
-  - Full Docker containerization (Dockerfile, docker-compose.yml)
-  - Zero hardcoded credentials (environment variable configuration)
-  - Automated Docker validation scripts (Windows/Linux)
-  - Warning system for default credentials
-  - Auto-discovery directory resolution
-  - Comprehensive credential configuration guide
-  - Enhanced Windows troubleshooting documentation
-
-- v2.0 - Red team-grade release
-  - Full CLI with all flags
-  - Cross-platform support
-  - JSON/CSV export
-  - Security controls (redaction, dry-run)
-  - Comprehensive test suite (61 tests)
-  - Jenkins Lab integration testing
-  - Enhanced documentation
-
-- v1.0 - Initial release
-  - Basic decryption functionality
-  - Interactive mode
-  - Limited error handling
-
 ---
 
 **For unit test documentation, see**: `tests/README.md`
