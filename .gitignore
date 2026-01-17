@@ -1,0 +1,176 @@
+# Root .gitignore for offensive security projects
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+.venv_*/
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Virtual Environments
+.venv_jenkinsbreaker/
+.venv_quantumforge/
+.venv_obscura/
+.venv_offsec/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+*.json.log
+jenkinsbreaker.log
+quantum*.log
+obscura*.log
+qf_logs/
+
+# Test outputs
+test_output.txt
+test_reports/
+outputs/
+reports/
+*.report
+*.md.bak
+integration_test_logs/
+
+# Build artifacts
+*.exe
+*.dll
+*.dylib
+*.a
+*.out
+build/
+bin/
+obj/
+*.o
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+
+# Compiled binaries
+quantum_loader
+quantum_loader_mac
+quantum_loader_win.exe
+quantumserver
+quantum_*_obfuscated
+
+# Docker
+*.tar
+*.tar.gz
+docker-compose.override.yml
+
+# Credentials and secrets
+*.key
+*.pem
+master.key
+hudson.util.Secret
+credentials.xml
+secrets/
+*.secret
+*.env.local
+api_keys.json
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+.cache/
+*.cache
+
+# OS specific
+.DS_Store
+._.DS_Store
+**/.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Backup files
+*.bak
+*.backup
+*~
+*.swp
+*.swo
+
+# Coverage and profiling
+.coverage
+*.cover
+*.prof
+*.profdata
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# RF/SDR artifacts  
+*.iq
+*.cf32
+*.cs16
+*.wav
+fixtures/*.iq.bak
+fixtures/*.bin.bak
+
+# Package managers
+node_modules/
+package-lock.json
+yarn.lock
+Pipfile.lock
+
+# Jenkins specific
+jenkins_home/
+.jenkins/
+workspace/
+jenkins_files/
+jenkins_loot/
+jenkins_real_test/
+
+# OpSec logging
+opsec_logs/
+*.enc
+*.enc.session
+
+# Network captures
+*.pcap
+*.pcapng
+
+# Attack graphs
+*.dot
+*.svg
+graphs/
+
+# Project specific excludes
+list_cves_output.txt
+test_secrets.*
+/tmp/
+test_cross_platform.bat
+test_cross_platform.sh
+CROSS_PLATFORM_VALIDATION.md
+
+# Task artifacts
+.zenflow/tasks/*/

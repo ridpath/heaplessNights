@@ -1,0 +1,328 @@
+# OpSec Logging & Evidence Management - World-Class .gitignore
+# For Red Team Operations, Penetration Testing, and Security Research
+# Platform: Cross-platform (Windows/Linux/macOS/WSL/Kali/Parrot OS)
+
+# ============================================================================
+# CRITICAL SECURITY: NEVER COMMIT THESE FILES
+# ============================================================================
+
+# Encryption Keys & Credentials
+*.key
+*.pem
+*.p12
+*.pfx
+*.keystore
+*.jks
+*.enc
+*.encrypted
+*_key.txt
+*_secret.txt
+passphrase.txt
+encryption_keys/
+keyring_backup/
+.keyring/
+secrets/
+credentials/
+.env.local
+.env.production
+.env.*.local
+
+# Platform-Specific Sensitive Files
+.aws/credentials
+.ssh/id_rsa*
+.gnupg/
+.config/gcloud/
+.kube/config
+
+# Operation Logs & Evidence
+opsec_logs/
+logs/
+*.log
+*.log.*
+*.log.gz
+*.log.bz2
+operations.db
+operations.db-*
+*.sqlite
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+session_*.json
+session_*.enc
+flag_*.json
+ctf_report*.json
+
+# Evidence & Artifacts
+evidence/
+artifacts/
+captures/
+pcaps/
+*.pcap
+*.pcapng
+*.cap
+screenshots/
+*.png
+*.jpg
+*.jpeg
+screen_*.png
+evidence_*.zip
+artifact_*.tar.gz
+dumps/
+*.dmp
+*.dump
+
+# Backup Files
+backups/
+backup_*/
+*.backup
+*.bak
+*.old
+*_backup_*/
+restore_*/
+recovery/
+.recovery/
+
+# Compressed Archives
+*.tar.gz
+*.tgz
+*.zip
+*.7z
+*.rar
+*.tar.bz2
+*.tar.xz
+evidence_archive_*/
+operation_archive_*/
+
+# Database Exports
+*.sql
+*.sql.gz
+database_export_*/
+db_dump_*/
+
+# Temporary Files
+tmp/
+temp/
+.tmp/
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Session Files
+.session_*
+session_state.json
+current_session.json
+active_operations.json
+
+# Redaction Maps (contain original sensitive data)
+redaction_map*.json
+ip_mapping.json
+mac_mapping.json
+*_redaction.json
+
+# IOC Exports (may contain sensitive data)
+iocs_*.json
+iocs_*.csv
+indicators_*.json
+threat_intel_*/
+
+# MISP/STIX Exports (sanitize before sharing)
+misp_event_*.json
+stix_bundle_*.json
+threat_sharing_*/
+
+# Platform-Specific Ignore Patterns
+
+# Windows
+*.lnk
+*.exe.config
+*.application
+*.cache
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Linux/Unix
+*.core
+core.[0-9]*
+*.pid
+*.sock
+/var/log/obscura/
+/var/cache/obscura/
+/run/obscura/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# WSL-Specific
+/mnt/c/Users/*/opsec_logs/
+/mnt/c/Users/*/obscura_evidence/
+
+# Python (if relevant)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+
+# IDE & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+.vim/
+.sublime-project
+.sublime-workspace
+*.code-workspace
+
+# Docker (if containerized)
+.dockerignore
+docker-compose.override.yml
+.docker/
+
+# ============================================================================
+# OPERATIONAL SECURITY NOTES
+# ============================================================================
+# 
+# BEFORE COMMITTING TO VERSION CONTROL:
+# 1. Ensure all logs are sanitized/redacted
+# 2. Remove all encryption keys and credentials
+# 3. Anonymize target information and client data
+# 4. Clear all session data and evidence artifacts
+# 5. Review for any sensitive hostnames, IPs, or internal paths
+# 6. Export sanitized IOCs only if sharing threat intelligence
+# 
+# SENSITIVE DATA HANDLING:
+# - Store encryption keys in OS keyring (keyring library)
+# - Use .env files (ignored above) for configuration
+# - Encrypt all logs before archival
+# - Use secure deletion (3-pass overwrite) for cleanup
+# - Maintain offline backups on encrypted media
+# 
+# COMPLIANCE:
+# - Follow client data handling agreements
+# - Respect NDA and confidentiality requirements
+# - Maintain chain of custody for evidence
+# - Document authorization before operations
+# 
+# ============================================================================
+# DEMO AND TESTING
+# ============================================================================
+
+# Demo Artifacts
+demo_logs/
+test_logs/
+examples/output/
+examples/*.log
+examples/*.db
+examples/*.pcap
+examples/opsec_logs/
+
+# Cross-Platform Test Data
+test_cross_platform_*/
+platform_test_*/
+wsl_test_*/
+obscura_demo_logs/
+
+# Temporary Test Files (any location)
+**/tmp/obscura*/
+**/temp/obscura*/
+**/.obscura_test_*/
+
+# Build Artifacts
+build/
+dist/
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE and Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# OS-Specific
+Thumbs.db
+ehthumbs.db
+
+# ============================================================================

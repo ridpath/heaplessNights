@@ -1,0 +1,81 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@2.31">
+  <actions/>
+  <description>API deployment with various third-party service credentials</description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.63">
+    <script>pipeline {
+    agent any
+    
+    environment {
+        STRIPE_SECRET_KEY = 'sk_live_51AbCdEfGhIjKlMnOpQrStUvWxYz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklm'
+        STRIPE_PUBLISHABLE_KEY = 'pk_live_51AbCdEfGhIjKlMnOpQrStUvWxYz0123456789ABCDEFGH'
+        SENDGRID_API_KEY = 'SG.AbCdEfGhIjKlMnOpQrStUv.WxYz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcd'
+        TWILIO_ACCOUNT_SID = 'AC1234567890abcdef1234567890abcdef'
+        TWILIO_AUTH_TOKEN = 'abcdef1234567890abcdef1234567890'
+        GITHUB_OAUTH_TOKEN = 'ghp_AbCdEfGhIjKlMnOpQrStUvWxYz012345'
+        SLACK_BOT_TOKEN = 'xoxb-0123456789-0123456789012-AbCdEfGhIjKlMnOpQrStUv'
+        DATADOG_API_KEY = 'abcdef1234567890abcdef1234567890'
+        DATADOG_APP_KEY = 'abcdef1234567890abcdef1234567890abcdef12'
+    }
+    
+    stages {
+        stage('Build') {
+            steps {
+                echo 'Building API...'
+                sh '''
+                    echo "Setting up environment..."
+                    env | grep -E "(STRIPE|SENDGRID|TWILIO|GITHUB|SLACK|DATADOG)" > /tmp/api_env.txt
+                '''
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                echo 'Testing API endpoints...'
+                sh '''
+                    curl -X POST "https://api.stripe.com/v1/customers" \
+                         -u "$STRIPE_SECRET_KEY:" \
+                         --data "description=Test Customer"
+                '''
+            }
+        }
+        
+        stage('Deploy') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'heroku-api-key', variable: 'HEROKU_KEY'),
+                    string(credentialsId: 'cloudflare-token', variable: 'CF_TOKEN')
+                ]) {
+                    sh '''
+                        echo "Deploying to production..."
+                        echo "Heroku API Key: $HEROKU_KEY"
+                        echo "Cloudflare Token: $CF_TOKEN"
+                    '''
+                }
+            }
+        }
+        
+        stage('Notify') {
+            steps {
+                sh '''
+                    curl -X POST https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX \
+                         -H "Content-Type: application/json" \
+                         -d "{\\"text\\": \\"Deployment completed\\"}"
+                '''
+            }
+        }
+    }
+    
+    post {
+        always {
+            sh 'echo "API deployment pipeline completed"'
+        }
+    }
+}</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>

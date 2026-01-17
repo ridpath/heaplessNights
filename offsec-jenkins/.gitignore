@@ -1,0 +1,64 @@
+# offsec-jenkins .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Test outputs and reports
+outputs/
+test_secrets.*
+decrypted_*.json
+decrypted_*.csv
+*.backup
+loot.json
+quick_loot.json
+final_test.json
+
+# Jenkins files (these should come from target, not tracked)
+master.key
+hudson.util.Secret
+credentials.xml
+secrets/
+config.xml
+jenkins_files/
+jenkins_loot/
+jenkins_real_test/
+demo_loot/
+
+# Test artifacts
+test_results.txt
+test_output_dryrun.txt
+test_output.json
+test_interactive.txt
+
+# OS specific
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Docker
+docker-compose.override.yml

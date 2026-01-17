@@ -1,0 +1,96 @@
+# QuantumForge .gitignore
+
+# Build artifacts
+build/
+bin/
+*.o
+*.obj
+*.exe
+*.dll
+*.dylib
+*.so
+*.a
+*.out
+quantum_loader
+quantum_loader_mac
+quantum_loader_win.exe
+quantumserver
+quantum_*_obfuscated
+
+# Generated code
+junk.h
+junk.c
+*.polyglot
+
+# Logs
+*.log
+logs/
+qf_*.log
+*.json.log
+/tmp/qf_logs/
+
+# Payloads (sensitive)
+*.bin
+*.raw
+*.payload
+test_payload
+test_so.so
+test_dll.dll
+*.iq
+*.cf32
+*.cs16
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Test outputs
+tests/*.exe
+tests/*.elf
+tests/*.so
+tests/*.dll
+tests/*.log
+tests/build/
+test_anti_analysis.sh.log
+test_anti_analysis.bat.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS specific
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Encryption keys (if accidentally generated)
+*.key
+*.pem
+
+# Temporary
+tmp/
+temp/
+*.tmp
+*.bak
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# Documentation builds
+docs/_build/
+docs/html/
+docs/latex/
+
+# Profiling and coverage
+*.gcda
+*.gcno
+*.gcov
+coverage/

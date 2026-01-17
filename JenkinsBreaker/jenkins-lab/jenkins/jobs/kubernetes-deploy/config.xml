@@ -1,0 +1,119 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@2.31">
+  <actions/>
+  <description>Kubernetes deployment pipeline with kubeconfig and cloud credentials</description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.63">
+    <script>pipeline {
+    agent any
+    
+    environment {
+        KUBECONFIG_CONTENT = '''
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    certificate-authority-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUMvakNDQWVhZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRJeU1ERXdNVEF3TURBd01Gb1hEVE15TURFd01UQXdNREF3TUZvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTEVLCmFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2wKbW5vcHFyc3R1dnd4eXpBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWg==
+    server: https://prod-k8s-cluster.example.com:6443
+  name: production-cluster
+contexts:
+- context:
+    cluster: production-cluster
+    user: jenkins-deployer
+  name: production
+current-context: production
+users:
+- name: jenkins-deployer
+  user:
+    token: eyJhbGciOiJSUzI1NiIsImtpZCI6IkFCQ0RFRiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6ImplbmtpbnMtdG9rZW4tYWJjZGUiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoiamVua2lucy1kZXBsb3llciIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6IjEyMzQ1Njc4LTkwYWItY2RlZi0xMjM0LTU2Nzg5MGFiY2RlZiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDpkZWZhdWx0OmplbmtpbnMtZGVwbG95ZXIifQ.ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789
+'''
+        GCP_SERVICE_ACCOUNT = '''
+{
+  "type": "service_account",
+  "project_id": "production-project-12345",
+  "private_key_id": "abcdef1234567890abcdef1234567890abcdef12",
+  "private_key": "-----BEGIN PRIVATE KEY-----\\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC5z6...(truncated)\\n-----END PRIVATE KEY-----\\n",
+  "client_email": "jenkins-deployer@production-project-12345.iam.gserviceaccount.com",
+  "client_id": "123456789012345678901",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs"
+}
+'''
+        AZURE_CLIENT_ID = 'abcdef12-3456-7890-abcd-ef1234567890'
+        AZURE_CLIENT_SECRET = 'AbCdEfGhIjKlMnOpQrStUvWxYz~0123456789'
+        AZURE_TENANT_ID = '12345678-90ab-cdef-1234-567890abcdef'
+        AZURE_SUBSCRIPTION_ID = 'fedcba09-8765-4321-fedc-ba0987654321'
+        
+        DOCKER_REGISTRY_URL = 'registry.example.com'
+        DOCKER_USERNAME = 'jenkins-bot'
+        DOCKER_PASSWORD = 'D0ck3r_R3g1stry_P@ss!'
+        
+        HELM_REPO_USERNAME = 'helm-deployer'
+        HELM_REPO_PASSWORD = 'H3lm_Ch@rt_P@ss!'
+    }
+    
+    stages {
+        stage('Setup Kubernetes') {
+            steps {
+                sh '''
+                    mkdir -p ~/.kube
+                    echo "$KUBECONFIG_CONTENT" > ~/.kube/config
+                    chmod 600 ~/.kube/config
+                    echo "Kubernetes config written"
+                '''
+            }
+        }
+        
+        stage('Setup Cloud Credentials') {
+            steps {
+                sh '''
+                    echo "$GCP_SERVICE_ACCOUNT" > /tmp/gcp-key.json
+                    echo "GCP service account key written"
+                    
+                    echo "Azure credentials configured:"
+                    echo "  Client ID: $AZURE_CLIENT_ID"
+                    echo "  Tenant ID: $AZURE_TENANT_ID"
+                '''
+            }
+        }
+        
+        stage('Docker Login') {
+            steps {
+                sh '''
+                    echo "$DOCKER_PASSWORD" | docker login $DOCKER_REGISTRY_URL -u $DOCKER_USERNAME --password-stdin
+                    echo "Logged into Docker registry"
+                '''
+            }
+        }
+        
+        stage('Deploy to Kubernetes') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'datadog-api-key', variable: 'DD_API_KEY')
+                ]) {
+                    sh '''
+                        echo "Deploying to Kubernetes cluster..."
+                        kubectl get nodes
+                        kubectl apply -f deployment.yaml
+                        
+                        echo "Configuring monitoring with Datadog..."
+                        echo "DD_API_KEY: $DD_API_KEY"
+                    '''
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            sh 'rm -f /tmp/gcp-key.json ~/.kube/config || true'
+        }
+    }
+}</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>

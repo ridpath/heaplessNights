@@ -1,7 +1,7 @@
-# api.py
 from flask import Flask, request, jsonify
 from .attacks import AttackOrchestrator
 from .utils import log_message, INTERFACE
+from .process_manager import get_process_manager
 
 app = Flask(__name__)
 orchestrator = AttackOrchestrator(INTERFACE)
@@ -18,13 +18,8 @@ def start_jamming():
 
 @app.route('/stop_jamming', methods=['POST'])
 def stop_jamming():
-    global HACKRF_PROCESS, ACTIVE_PROCESSES
-    for proc in ACTIVE_PROCESSES:
-        if proc.poll() is None:
-            proc.terminate()
-    if HACKRF_PROCESS:
-        HACKRF_PROCESS.terminate()
-        HACKRF_PROCESS = None
+    process_manager = get_process_manager()
+    process_manager.stop_all_processes()
     return jsonify({"status": "stopped"})
 
 @app.route('/scan_vulnerabilities', methods=['POST'])
