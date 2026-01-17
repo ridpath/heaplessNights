@@ -89,10 +89,14 @@ Recoverable secrets include:
 
 ### Quick Start
 
+**Clone the repository**:
+```bash
+git clone https://github.com/ridpath/heaplessNights.git
+cd heaplessNights/offsec-jenkins
+```
+
 **Option 1: Native Python** (dependencies auto-install):
 ```bash
-git clone <repo>
-cd offsec-jenkins
 python3 decrypt.py --help
 ```
 
@@ -100,8 +104,6 @@ The script automatically creates a `.venv` and installs dependencies on first ru
 
 **Option 2: Docker** (zero local dependencies):
 ```bash
-git clone <repo>
-cd offsec-jenkins
 docker-compose build offsec-jenkins
 docker-compose run --rm offsec-jenkins --help
 ```
@@ -574,10 +576,8 @@ The tool warns if run with unnecessary elevated privileges:
 ### Main Documentation
 - `README.md` - This file
 - `DOCKER_USAGE.md` - Complete Docker usage guide
-### Jenkins Lab Configuration
-- `JenkinsBreaker/jenkins-lab/README_CREDENTIALS.md` - Credential configuration guide
-- `.dockerignore` - Docker build optimization
-- `docker-examples.sh` - Docker usage examples
+- `QUICK_START_JENKINS_LAB.md` - Jenkins Lab testing guide
+- `JENKINSBREAKER_INTEGRATION.md` - JenkinsBreaker integration reference
 
 ### Test Documentation
 - `tests/README.md` - Test suite overview
@@ -675,6 +675,31 @@ This version has been significantly extended with:
 ## License
 
 See `LICENSE` file for details.
+
+## Version History
+
+- v2.1 - Docker and credential configuration release
+  - Full Docker containerization (Dockerfile, docker-compose.yml)
+  - Zero hardcoded credentials (environment variable configuration)
+  - Automated Docker validation scripts (Windows/Linux)
+  - Warning system for default credentials
+  - Auto-discovery directory resolution
+  - Comprehensive credential configuration guide
+  - Enhanced Windows troubleshooting documentation
+
+- v2.0 - Red team-grade release
+  - Full CLI with all flags
+  - Cross-platform support
+  - JSON/CSV export
+  - Security controls (redaction, dry-run)
+  - Comprehensive test suite (61 tests)
+  - Jenkins Lab integration testing
+  - Enhanced documentation
+
+- v1.0 - Initial release
+  - Basic decryption functionality
+  - Interactive mode
+  - Limited error handling
 
 ---
 
