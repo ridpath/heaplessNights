@@ -60,11 +60,11 @@ Key goals:
 - **Persistence Techniques** (Cron Jobs, Jenkins Pipelines)
 - **Modular Exploit Loading** (`exploits/` Directory)
 - **Integrated Jenkins Lab** for CVE testing and validation
-- **Advanced Modules (New)**:
+- **Modules (New)**:
   - Textual TUI – Interactive terminal interface with real-time exploitation
   - Web UI – Browser-based dashboard with FastAPI + WebSocket support
   - JenkinsFuzzer – Pipeline misconfiguration discovery (8 fuzzing modules)
-  - JWT Breaker – Advanced JWT cryptanalysis with algorithm confusion
+  - JWT Breaker – JWT cryptanalysis with algorithm confusion
   - Plugin Fingerprint Engine – CVE correlation with 40+ vulnerability mappings
   - Persistence Manager – 7 post-exploitation persistence mechanisms  
 
@@ -238,7 +238,7 @@ python3 JenkinsBreaker.py --generate-shell bash --lhost YOUR_IP --lport 4444
 python3 JenkinsBreaker.py --list-cves
 ```
 
-### Advanced Modules
+### Modules
 
 ```bash
 # Launch Textual TUI
@@ -297,9 +297,9 @@ python3 decrypt.py --path /var/jenkins_home --export-json loot.json --reveal-sec
 - Python dependencies installed via pip with --break-system-packages flag
 - Full exploit chain tested: RCE → credential extraction → decryption → JSON export
 
-## Advanced Modules
+## Modules
 
-JenkinsBreaker now includes 6 advanced modules for comprehensive exploitation and post-exploitation workflows:
+JenkinsBreaker now includes 6 modules for comprehensive exploitation and post-exploitation workflows:
 
 ### 1. Textual TUI (`tui.py`)
 
@@ -358,7 +358,7 @@ python3 jenkinsfuzzer.py --url http://localhost:8080 --username admin --password
 
 ### 4. JWT Breaker (`jwt_breaker.py`)
 
-Advanced JWT token cryptanalysis with algorithm confusion and weak secret detection.
+JWT token cryptanalysis with algorithm confusion and weak secret detection.
 
 **Capabilities:**
 - Algorithm confusion attacks (alg: none, RS256→HS256, null signature)
@@ -380,7 +380,7 @@ python3 jwt_breaker.py --url http://localhost:8080 --token YOUR_JWT_TOKEN --word
 
 ### 5. Plugin Fingerprint Engine (`plugin_fingerprint.py`)
 
-Advanced plugin detection with CVE correlation and exploit recommendations.
+Plugin detection with CVE correlation and exploit recommendations.
 
 **Detection Methods:**
 - API-based enumeration (`/pluginManager/api/json`)
