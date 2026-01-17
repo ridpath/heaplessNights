@@ -1,0 +1,88 @@
+{
+  "drone": {
+    "device_type": "drone",
+    "vendor": "DJI",
+    "services": ["gps", "wifi", "bluetooth"],
+    "protocols": ["wifi", "gps"],
+    "ssid_patterns": ["^DJI-", "^Phantom-", "^Mavic-"],
+    "mac_prefix": "60:60:1F",
+    "signal_strength": -45,
+    "location": {"lat": 37.7749, "lon": -122.4194}
+  },
+  "camera": {
+    "device_type": "camera",
+    "vendor": "Ring",
+    "services": ["http", "rtsp", "mjpeg"],
+    "protocols": ["wifi", "http"],
+    "ssid_patterns": ["^Ring-", "^Camera-"],
+    "dns_hosts": ["ring.com", "api.ring.com"],
+    "mac_prefix": "B4:F1:DA",
+    "signal_strength": -55,
+    "entropy_threshold": 7.0
+  },
+  "router": {
+    "device_type": "router",
+    "vendor": "Netgear",
+    "services": ["http", "upnp", "dns"],
+    "protocols": ["wifi"],
+    "ssid_patterns": ["^NETGEAR", "^MyNetwork"],
+    "mac_prefix": "A0:63:91",
+    "signal_strength": -40
+  },
+  "bluetooth_speaker": {
+    "device_type": "bluetooth",
+    "vendor": "Bose",
+    "services": ["bluetooth", "a2dp", "avrcp"],
+    "protocols": ["bluetooth"],
+    "signal_strength": -60
+  },
+  "smart_lock": {
+    "device_type": "iot",
+    "vendor": "August",
+    "services": ["bluetooth", "zigbee"],
+    "protocols": ["bluetooth", "zigbee"],
+    "mac_prefix": "F0:C7:7F",
+    "signal_strength": -50
+  },
+  "satellite_receiver": {
+    "device_type": "satellite",
+    "vendor": "DirecTV",
+    "services": ["dvb-s", "http"],
+    "protocols": ["satellite"],
+    "signal_strength": -70
+  },
+  "ipcam": {
+    "device_type": "ipcam",
+    "vendor": "Hikvision",
+    "services": ["rtsp", "onvif", "http"],
+    "protocols": ["wifi", "ethernet"],
+    "ssid_patterns": ["^IPCAM-", "^CAM-"],
+    "dns_hosts": ["hikvision.com"],
+    "mac_prefix": "44:19:B6",
+    "signal_strength": -50
+  },
+  "uav": {
+    "device_type": "uav",
+    "vendor": "Parrot",
+    "services": ["gps", "wifi"],
+    "protocols": ["wifi", "gps"],
+    "ssid_patterns": ["^Parrot-", "^ANAFI-"],
+    "signal_strength": -48
+  },
+  "access_point": {
+    "device_type": "access_point",
+    "vendor": "Ubiquiti",
+    "services": ["http", "ssh", "snmp"],
+    "protocols": ["wifi"],
+    "ssid_patterns": ["^UniFi", "^Corporate"],
+    "mac_prefix": "74:83:C2",
+    "signal_strength": -35
+  },
+  "ble_headset": {
+    "device_type": "ble",
+    "vendor": "Sony",
+    "services": ["bluetooth", "a2dp", "hfp"],
+    "protocols": ["bluetooth"],
+    "signal_strength": -65
+  }
+}

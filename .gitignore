@@ -1,6 +1,8 @@
-# Root .gitignore for offensive security projects
+# heaplessNights - Comprehensive .gitignore
 
+# ============================================
 # Python
+# ============================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -23,13 +25,17 @@ htmlcov/
 .dmypy.json
 dmypy.json
 
-# Virtual Environments
+# ============================================
+# Virtual Environments (project-specific)
+# ============================================
 .venv_jenkinsbreaker/
 .venv_quantumforge/
 .venv_obscura/
 .venv_offsec/
 
-# IDEs
+# ============================================
+# IDEs and Editors
+# ============================================
 .vscode/
 .idea/
 *.swp
@@ -38,7 +44,9 @@ dmypy.json
 .DS_Store
 Thumbs.db
 
+# ============================================
 # Logs
+# ============================================
 *.log
 logs/
 *.json.log
@@ -46,17 +54,33 @@ jenkinsbreaker.log
 quantum*.log
 obscura*.log
 qf_logs/
+opsec_logs/
+jammer_log.txt
 
-# Test outputs
+# ============================================
+# Test Outputs and Reports
+# ============================================
 test_output.txt
+test_output*.txt
+test_results.txt
 test_reports/
 outputs/
 reports/
 *.report
 *.md.bak
 integration_test_logs/
+test_secrets*.json
+secrets_test*.json
+secrets_revealed*.json
+loot*.json
+quick_loot*.json
+final_test.json
+test_export*.json
+test_final*.json
 
-# Build artifacts
+# ============================================
+# Build Artifacts
+# ============================================
 *.exe
 *.dll
 *.dylib
@@ -72,19 +96,26 @@ obj/
 *.exp
 *.lib
 
-# Compiled binaries
+# ============================================
+# Compiled Binaries (QuantumForge)
+# ============================================
 quantum_loader
 quantum_loader_mac
 quantum_loader_win.exe
 quantumserver
 quantum_*_obfuscated
+junk.h
 
+# ============================================
 # Docker
+# ============================================
 *.tar
 *.tar.gz
 docker-compose.override.yml
 
-# Credentials and secrets
+# ============================================
+# Credentials and Secrets
+# ============================================
 *.key
 *.pem
 master.key
@@ -94,8 +125,12 @@ secrets/
 *.secret
 *.env.local
 api_keys.json
+*.enc
+*.enc.session
 
-# Temporary files
+# ============================================
+# Temporary Files
+# ============================================
 tmp/
 temp/
 *.tmp
@@ -103,7 +138,9 @@ temp/
 .cache/
 *.cache
 
-# OS specific
+# ============================================
+# OS Specific
+# ============================================
 .DS_Store
 ._.DS_Store
 **/.DS_Store
@@ -111,66 +148,164 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-# Backup files
+# ============================================
+# Backup Files
+# ============================================
 *.bak
 *.backup
 *~
 *.swp
 *.swo
 
-# Coverage and profiling
+# ============================================
+# Coverage and Profiling
+# ============================================
 .coverage
 *.cover
 *.prof
 *.profdata
 
+# ============================================
 # Jupyter Notebooks
+# ============================================
 .ipynb_checkpoints/
 *.ipynb
 
-# RF/SDR artifacts  
+# ============================================
+# RF/SDR Artifacts
+# ============================================
 *.iq
 *.cf32
 *.cs16
 *.wav
+fixtures/*.iq
+fixtures/*.bin
 fixtures/*.iq.bak
 fixtures/*.bin.bak
 
-# Package managers
+# ============================================
+# Package Managers
+# ============================================
 node_modules/
 package-lock.json
 yarn.lock
 Pipfile.lock
 
-# Jenkins specific
+# ============================================
+# Jenkins Specific
+# ============================================
 jenkins_home/
 .jenkins/
 workspace/
 jenkins_files/
 jenkins_loot/
 jenkins_real_test/
+demo_loot/
 
-# OpSec logging
-opsec_logs/
-*.enc
-*.enc.session
-
-# Network captures
+# ============================================
+# Network Captures
+# ============================================
 *.pcap
 *.pcapng
 
-# Attack graphs
+# ============================================
+# Attack Graphs
+# ============================================
 *.dot
 *.svg
 graphs/
+attack_graph.json
 
-# Project specific excludes
-list_cves_output.txt
-test_secrets.*
-/tmp/
-test_cross_platform.bat
-test_cross_platform.sh
-CROSS_PLATFORM_VALIDATION.md
+# ============================================
+# Task Artifacts (EXCLUDE ALL)
+# ============================================
+*_COMPLETE.md
+*_COMPLETION*.md
+*_VERIFICATION*.md
+*_VALIDATION*.md
+*_SUMMARY.md
+*_IMPLEMENTATION*.md
+*_ENHANCEMENTS.md
+*_IMPROVEMENTS*.md
+STEP_*.md
+TEST_CVE_*.md
+WSL_TESTING_*.md
+PRODUCTION_READINESS.md
+STUB_COMPLETION_REPORT.md
 
-# Task artifacts
-.zenflow/tasks/*/
+# ============================================
+# Test Files (EXCLUDE TEMPORARY TEST SCRIPTS)
+# ============================================
+test_*.bat
+test_*.sh
+test_*.ps1
+test_*.txt
+check_*.bat
+check_*.ps1
+check_*.py
+verify_*.bat
+verify_*.ps1
+verify_*.sh
+validate_*.py
+validate_*.bat
+run_*.bat
+run_*.ps1
+fix_*.bat
+fix_*.ps1
+fix_*.sh
+install_*.bat
+install_*.sh
+install_*.ps1
+install_*.txt
+demo_*.bat
+demo_*.sh
+sync_*.bat
+extract_*.bat
+integration_test.bat
+integration_test.sh
+comprehensive_test.py
+
+# ============================================
+# Exclude Project-Specific Test Directories
+# ============================================
+-p/
+
+# ============================================
+# Docker and WSL Artifacts
+# ============================================
+*.wsl
+*.wsl.zip
+.dockerignore
+
+# ============================================
+# Miscellaneous
+# ============================================
+hosts_addition.txt
+Connection.txt
+
+# ============================================
+# Keep These Test Files (EXCEPTIONS)
+# ============================================
+!tests/
+!**/tests/
+!pytest.ini
+!**/pytest.ini
+!requirements.txt
+!**/requirements.txt
+!test_traits.json
+!**/test_traits.json
+!jenkins-lab/scripts/
+!**/scripts/test_*.sh
+!**/scripts/validate_*.sh
+!**/scripts/verify_*.sh# Test verification scripts 
+test_*.py 
+test_*.bat 
+test_*.sh 
+verify_*.py 
+check_*.py 
+generate_test_*.py 
+extract_polyglot.sh 
+generate_junk.py 
+*EXPLOIT_VALIDATION.sh 
+*FINAL_VALIDATION.sh 
+check_jenkins_status.sh 
