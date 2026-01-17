@@ -1,0 +1,61 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@2.31">
+  <actions/>
+  <description>Database migration job with embedded credentials</description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.63">
+    <script>pipeline {
+    agent any
+    
+    environment {
+        DB_HOST = 'prod-db-master.internal.example.com'
+        DB_PORT = '5432'
+        DB_NAME = 'production'
+        DB_USER = 'migration_user'
+        DB_PASSWORD = 'M1gr@t10n_P@ssw0rd_2024!'
+        REDIS_URL = 'redis://:SuperSecretRedisPass2024@redis.internal.example.com:6379/0'
+        MONGODB_URI = 'mongodb://admin:MongoDBSecretPass123@mongo.internal.example.com:27017/admin'
+    }
+    
+    stages {
+        stage('Backup') {
+            steps {
+                echo 'Creating database backup...'
+                sh '''
+                    export PGPASSWORD=$DB_PASSWORD
+                    echo "Connecting to $DB_HOST as $DB_USER"
+                    # pg_dump would run here
+                '''
+            }
+        }
+        
+        stage('Migrate') {
+            steps {
+                echo 'Running migrations...'
+                sh '''
+                    echo "Database: postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
+                    # Migration commands would run here
+                '''
+            }
+        }
+        
+        stage('Verify') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'database-admin', 
+                                                 usernameVariable: 'ADMIN_USER', 
+                                                 passwordVariable: 'ADMIN_PASS')]) {
+                    sh '''
+                        echo "Verifying with admin credentials"
+                        echo "Admin user: $ADMIN_USER"
+                    '''
+                }
+            }
+        }
+    }
+}</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>

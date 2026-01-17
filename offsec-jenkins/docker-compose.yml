@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # Jenkins Credential Decryptor
+  offsec-jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: offsec-jenkins
+    volumes:
+      # Mount directory containing Jenkins files (master.key, hudson.util.Secret, credentials.xml)
+      - ./jenkins_files:/data:ro
+      # Mount output directory for exports
+      - ./outputs:/outputs
+    command: --help
+    # Override command at runtime, e.g.:
+    # docker-compose run --rm offsec-jenkins --path /data --export-json /outputs/loot.json --reveal-secrets
+
+  # Optional: Jenkins Lab for testing (credentials specified by user)
+  jenkins-lab:
+    image: jenkins/jenkins:2.138.3-alpine
+    container_name: jenkins-lab
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    environment:
+      # Disable setup wizard for testing
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+      # Users must configure admin credentials via Jenkins UI or init scripts
+      # DO NOT hardcode credentials here
+    volumes:
+      - jenkins_data:/var/jenkins_home
+    networks:
+      - jenkins-network
+    restart: unless-stopped
+    profiles:
+      - lab  # Only start with: docker-compose --profile lab up
+
+networks:
+  jenkins-network:
+    driver: bridge
+
+volumes:
+  jenkins_data:

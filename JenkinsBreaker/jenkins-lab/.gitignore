@@ -1,0 +1,11 @@
+*.log
+*.jar
+.env
+.DS_Store
+
+jenkins-cli.jar
+
+*.hprof
+
+.vscode/
+.idea/

@@ -1,0 +1,53 @@
+﻿# Obscura .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Logs
+*.log
+logs/
+jammer_log.txt
+
+# Test outputs
+test_output.txt
+attack_graph.json
+*.svg
+graphs/
+
+# OpSec logging
+opsec_logs/
+*.enc
+*.enc.session
+
+# RF/SDR artifacts - EXCLUDE LARGE BINARY FILES
+*.iq
+*.cf32
+*.cs16
+*.wav
+fixtures/*.bin
+fixtures/*.iq
+fixtures/*.cf32
+fixtures/*.cs16
+
+# Hardware
+*.pcap
+*.pcapng
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

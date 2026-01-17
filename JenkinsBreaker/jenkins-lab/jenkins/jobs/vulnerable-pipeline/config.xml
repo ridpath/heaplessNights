@@ -1,0 +1,64 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@2.31">
+  <actions/>
+  <description>Vulnerable pipeline with embedded secrets for testing</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>-1</daysToKeep>
+        <numToKeep>10</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.63">
+    <script>pipeline {
+    agent any
+    
+    environment {
+        AWS_ACCESS_KEY_ID = 'AKIAIOSFODNN7EXAMPLE'
+        AWS_SECRET_ACCESS_KEY = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+        DATABASE_URL = 'postgresql://admin:SuperSecret123@db.example.com:5432/production'
+        API_TOKEN = 'sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789'
+        SLACK_WEBHOOK = 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX'
+    }
+    
+    stages {
+        stage('Build') {
+            steps {
+                echo 'Building application...'
+                sh 'echo "API Key: $API_TOKEN"'
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                echo 'Running tests...'
+                sh 'env | grep -i secret || true'
+            }
+        }
+        
+        stage('Deploy') {
+            steps {
+                echo 'Deploying to production...'
+                sh '''
+                    aws s3 ls --profile production
+                    echo "Deploy complete"
+                '''
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo 'Pipeline execution completed'
+        }
+    }
+}</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>

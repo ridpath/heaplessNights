@@ -1,0 +1,302 @@
+name: QuantumForge CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: cpp
+        queries: security-and-quality
+    
+    - name: Build for CodeQL
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libssl-dev libcurl4-openssl-dev
+        gcc -c quantumserver.c -D_GNU_SOURCE -lcrypto -lssl -lcurl -ldl
+    
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+    
+    - name: Run Semgrep
+      uses: returntocorp/semgrep-action@v1
+      with:
+        config: >-
+          p/security-audit
+          p/owasp-top-ten
+          p/cwe-top-25
+
+  build-linux:
+    name: Build - Linux (Ubuntu)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+        build_type: [hardened, static, debug, asan]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libssl-dev \
+          libcurl4-openssl-dev \
+          musl-tools \
+          musl-dev \
+          valgrind \
+          cppcheck \
+          clang \
+          llvm
+    
+    - name: Generate junk code
+      run: python3 generate_junk.py
+    
+    - name: Build (Hardened)
+      if: matrix.build_type == 'hardened'
+      run: |
+        export CC=${{ matrix.compiler }}
+        bash compile_all.sh
+    
+    - name: Build (Static)
+      if: matrix.build_type == 'static'
+      run: |
+        export CC=${{ matrix.compiler }}
+        bash compile_all.sh --static
+    
+    - name: Build (Debug)
+      if: matrix.build_type == 'debug'
+      run: |
+        ${{ matrix.compiler }} -o quantumserver quantumserver.c \
+          -lcrypto -lssl -lcurl -ldl \
+          -D_GNU_SOURCE \
+          -O0 -g -DDEBUG
+    
+    - name: Build (ASAN)
+      if: matrix.build_type == 'asan'
+      run: |
+        ${{ matrix.compiler }} -o quantumserver quantumserver.c \
+          -lcrypto -lssl -lcurl -ldl \
+          -D_GNU_SOURCE \
+          -fsanitize=address,undefined \
+          -fno-omit-frame-pointer \
+          -g -O1
+    
+    - name: Run unit tests
+      run: |
+        gcc -o tests/test_crypto_unit tests/test_crypto_unit.c \
+          -lcrypto -lssl -I. -D_GNU_SOURCE
+        ./tests/test_crypto_unit
+    
+    - name: Run integration tests
+      if: matrix.build_type == 'hardened'
+      run: |
+        cd tests
+        bash test_loader_linux.sh
+    
+    - name: Static analysis (cppcheck)
+      if: matrix.compiler == 'gcc' && matrix.build_type == 'hardened'
+      run: |
+        cppcheck --enable=all --suppress=missingIncludeSystem \
+          --error-exitcode=1 --inline-suppr \
+          quantumserver.c quantum_loader_mac.c quantum_loader_win.c
+    
+    - name: Check security features
+      if: matrix.build_type == 'hardened'
+      run: |
+        readelf -h quantumserver | grep "Type:" | grep "DYN"
+        readelf -s quantumserver | grep "__stack_chk_fail"
+        readelf -l quantumserver | grep "GNU_RELRO"
+        readelf -l quantumserver | grep "GNU_STACK"
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: quantumserver-linux-${{ matrix.compiler }}-${{ matrix.build_type }}
+        path: quantumserver
+
+  build-macos:
+    name: Build - macOS
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        build_type: [hardened, debug]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        brew install openssl curl python3
+    
+    - name: Generate junk code
+      run: python3 generate_junk.py
+    
+    - name: Build (Hardened)
+      if: matrix.build_type == 'hardened'
+      run: |
+        gcc -o quantum_loader_mac quantum_loader_mac.c \
+          -framework Security \
+          -framework CoreFoundation \
+          -lcurl \
+          -O3 -fPIE -pie \
+          -fstack-protector-strong \
+          -D_FORTIFY_SOURCE=2
+    
+    - name: Build (Debug)
+      if: matrix.build_type == 'debug'
+      run: |
+        gcc -o quantum_loader_mac quantum_loader_mac.c \
+          -framework Security \
+          -framework CoreFoundation \
+          -lcurl \
+          -O0 -g -DDEBUG
+    
+    - name: Run unit tests
+      run: |
+        gcc -o tests/test_crypto_unit tests/test_crypto_unit.c \
+          -framework Security -framework CoreFoundation \
+          -I. -D_GNU_SOURCE || echo "Skipping crypto tests (OpenSSL required)"
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: quantum_loader_mac-${{ matrix.build_type }}
+        path: quantum_loader_mac
+
+  build-windows:
+    name: Build - Windows
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        build_type: [hardened, debug]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup MSVC
+      uses: microsoft/setup-msbuild@v2
+    
+    - name: Generate junk code
+      run: python generate_junk.py
+    
+    - name: Build (Hardened)
+      if: matrix.build_type == 'hardened'
+      run: |
+        cl.exe /Fe:quantum_loader_win.exe quantum_loader_win.c ^
+          /link bcrypt.lib winhttp.lib ws2_32.lib advapi32.lib ^
+          /DYNAMICBASE /NXCOMPAT /GUARD:CF /CETCOMPAT ^
+          /O2 /GL /LTCG
+    
+    - name: Build (Debug)
+      if: matrix.build_type == 'debug'
+      run: |
+        cl.exe /Fe:quantum_loader_win.exe quantum_loader_win.c ^
+          /link bcrypt.lib winhttp.lib ws2_32.lib advapi32.lib ^
+          /DEBUG /Od /Zi
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: quantum_loader_win-${{ matrix.build_type }}
+        path: quantum_loader_win.exe
+
+  fuzzing:
+    name: Fuzzing
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install AFL++
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y afl++ libssl-dev libcurl4-openssl-dev
+    
+    - name: Build with AFL++
+      run: |
+        python3 generate_junk.py
+        afl-gcc -o quantumserver-fuzz quantumserver.c \
+          -lcrypto -lssl -lcurl -ldl \
+          -D_GNU_SOURCE -DFUZZING_BUILD_MODE
+    
+    - name: Create fuzzing corpus
+      run: |
+        mkdir -p fuzz_input fuzz_output
+        echo "test_payload_data" > fuzz_input/seed1
+    
+    - name: Run AFL++ (short run for CI)
+      run: |
+        timeout 300 afl-fuzz -i fuzz_input -o fuzz_output -- ./quantumserver-fuzz --test-mode || true
+    
+    - name: Upload crash artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: fuzzing-crashes
+        path: fuzz_output/crashes
+
+  sbom-generation:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Generate SBOM with syft
+      uses: anchore/sbom-action@v0
+      with:
+        format: cyclonedx-json
+        output-file: quantumforge-sbom.json
+    
+    - name: Upload SBOM
+      uses: actions/upload-artifact@v4
+      with:
+        name: sbom
+        path: quantumforge-sbom.json
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build-linux, build-macos, build-windows, security-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          quantumserver-linux-gcc-hardened/quantumserver
+          quantum_loader_mac-hardened/quantum_loader_mac
+          quantum_loader_win-hardened/quantum_loader_win.exe
+          sbom/quantumforge-sbom.json

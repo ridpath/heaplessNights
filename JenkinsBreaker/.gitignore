@@ -1,0 +1,91 @@
+# JenkinsBreaker .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv_jenkinsbreaker/
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+jenkinsbreaker.log
+exploit_*.log
+
+# Reports
+reports/
+test_reports/
+*.pdf
+*.html
+output_*.md
+output_*.json
+secrets_test.json
+secrets_revealed_test.json
+test_export.json
+test_final.json
+
+# Test outputs
+test_output.txt
+list_cves_output.txt
+test_secrets.*
+VERIFICATION_RESULTS.txt
+
+# Exploits and payloads (sensitive)
+payloads/*.jar
+payloads/*.war
+payloads/*.hpi
+payloads/*.groovy.bak
+*.reverse_shell
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS specific
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Jenkins Lab
+jenkins_home/
+jenkins-lab/logs/
+jenkins-lab/jenkins_home/
+jenkins-lab/.jenkins/
+
+# Temporary
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# CI/CD
+.github/workflows/*.log
+
+# Coverage
+.coverage
+htmlcov/
+
+# Credentials (if accidentally captured)
+*.credentials
+captured_*.xml
+master.key
+hudson.util.Secret
+credentials.xml
+
+# Examples and test artifacts
+examples/captures/
+examples/*.jar

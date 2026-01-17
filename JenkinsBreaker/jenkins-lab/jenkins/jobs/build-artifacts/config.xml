@@ -1,0 +1,130 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@2.31">
+  <actions/>
+  <description>Build job that creates artifacts with embedded secrets</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>-1</daysToKeep>
+        <numToKeep>5</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>5</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.63">
+    <script>pipeline {
+    agent any
+    
+    stages {
+        stage('Build') {
+            steps {
+                echo 'Creating build artifacts...'
+                sh '''
+                    mkdir -p build/
+                    
+                    # Create .env file with secrets
+                    cat > build/.env << 'EOF'
+DATABASE_URL=postgresql://admin:SuperSecret123@db.example.com:5432/production
+REDIS_URL=redis://:RedisSecretPass2024@redis.example.com:6379/0
+JWT_SECRET=your-256-bit-secret-key-here-change-in-production
+API_KEY=sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789
+ENCRYPTION_KEY=aes256-encryption-key-32-bytes!
+SESSION_SECRET=express-session-secret-change-me-in-production
+STRIPE_SECRET=sk_live_51AbCdEfGhIjKlMnOpQrStUvWxYz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklm
+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+EOF
+                    
+                    # Create config.json with API keys
+                    cat > build/config.json << 'EOF'
+{
+  "api": {
+    "baseUrl": "https://api.example.com",
+    "key": "AIzaSyAbCdEfGhIjKlMnOpQrStUvWxYz012345",
+    "secret": "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789"
+  },
+  "database": {
+    "host": "db.internal.example.com",
+    "port": 5432,
+    "username": "app_user",
+    "password": "AppUser_P@ssw0rd_2024!",
+    "database": "production"
+  },
+  "redis": {
+    "host": "redis.internal.example.com",
+    "port": 6379,
+    "password": "RedisSecretPass2024"
+  },
+  "jwt": {
+    "secret": "jwt-secret-key-256-bits-change-in-production-environment",
+    "expiresIn": "24h"
+  }
+}
+EOF
+                    
+                    # Create credentials.txt
+                    cat > build/credentials.txt << 'EOF'
+Production Credentials - DO NOT COMMIT
+=======================================
+
+SSH Access:
+Host: prod-server-01.example.com
+User: deploy
+Password: D3pl0y_P@ssw0rd_2024!
+
+Database:
+postgresql://admin:SuperSecret123@db.example.com:5432/production
+
+API Keys:
+Stripe: sk_live_51AbCdEfGhIjKlMnOpQrStUvWxYz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklm
+SendGrid: SG.AbCdEfGhIjKlMnOpQrStUv.WxYz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcd
+GitHub: ghp_AbCdEfGhIjKlMnOpQrStUvWxYz012345
+
+Admin Panel:
+URL: https://admin.example.com
+Username: admin@example.com
+Password: @dmin_P@nel_2024!
+EOF
+                    
+                    # Create app.config with embedded keys
+                    cat > build/app.config << 'EOF'
+[Database]
+ConnectionString=Server=db.internal.example.com;Database=production;User Id=sa;Password=SQL_S3rv3r_P@ss!;
+
+[AWS]
+AccessKeyId=AKIAIOSFODNN7EXAMPLE
+SecretAccessKey=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+Region=us-east-1
+
+[Email]
+SmtpHost=smtp.gmail.com
+SmtpPort=587
+Username=notifications@example.com
+Password=Gmail_App_P@ssw0rd_2024!
+
+[Encryption]
+Key=32-byte-aes-256-encryption-key!!
+IV=16-byte-iv-here
+EOF
+                    
+                    tar -czf build_artifacts.tar.gz build/
+                    echo "Build artifacts created"
+                '''
+            }
+        }
+        
+        stage('Archive') {
+            steps {
+                archiveArtifacts artifacts: 'build_artifacts.tar.gz', fingerprint: true
+                echo 'Artifacts archived'
+            }
+        }
+    }
+}</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>

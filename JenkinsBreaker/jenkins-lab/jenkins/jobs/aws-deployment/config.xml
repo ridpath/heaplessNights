@@ -1,0 +1,33 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@2.31">
+  <actions/>
+  <description>AWS deployment pipeline with credentials</description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.63">
+    <script>pipeline {
+    agent any
+    
+    stages {
+        stage('AWS Deploy') {
+            steps {
+                withCredentials([
+                    usernamePassword(credentialsId: 'aws-credentials', 
+                                   usernameVariable: 'AWS_KEY', 
+                                   passwordVariable: 'AWS_SECRET')
+                ]) {
+                    sh '''
+                        export AWS_ACCESS_KEY_ID=$AWS_KEY
+                        export AWS_SECRET_ACCESS_KEY=$AWS_SECRET
+                        echo "Deploying to AWS..."
+                    '''
+                }
+            }
+        }
+    }
+}</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>
