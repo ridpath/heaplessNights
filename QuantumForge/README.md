@@ -640,13 +640,13 @@ Fuzzing targets:
 - **Username**: `over`
 - **Password**: `over`
 - **Access**: `wsl -d parrot bash`
-- **Project Path**: `/mnt/c/Users/Chogyam/.zenflow/worktrees/new-task-e6e5/QuantumForge`
+- **Project Path**: `~/QuantumForge`
 
 ### Quick Test on WSL
 
 ```bash
 wsl -d parrot bash
-cd /mnt/c/Users/Chogyam/.zenflow/worktrees/new-task-e6e5/QuantumForge
+cd ~/QuantumForge
 bash compile_all.sh
 ./quantumserver --help
 ./quantumserver --test-mode --no-doh --no-selfdelete
@@ -952,7 +952,7 @@ Unauthorized use against systems you do not own or have explicit permission to t
 For issues or improvements, test on WSL Parrot Linux first:
 
 ```bash
-cd /mnt/c/Users/Chogyam/.zenflow/worktrees/new-task-e6e5/QuantumForge/tests
+cd ~/QuantumForge/tests
 bash test_loader_linux.sh
 ```
 

@@ -284,7 +284,7 @@ For maximum exploitability:
 ### From WSL Environment
 
 ```bash
-cd /mnt/c/Users/<username>/.zenflow/worktrees/new-task-e6e5/JenkinsBreaker/jenkins-lab
+cd ~/jenkins-lab
 
 docker ps
 docker-compose ps

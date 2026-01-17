@@ -177,7 +177,7 @@ No actual RF emissions occur during normal test runs.
 Tests are designed to work in WSL2 environment:
 
 ```bash
-cd /mnt/c/Users/Chogyam/.zenflow/worktrees/new-task-e6e5/obscura
+cd ~/obscura
 pytest --wsl
 ```
 
