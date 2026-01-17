@@ -90,7 +90,7 @@ offensive-security, cyber-physical-security, red-team-tool
 ### Minimal Installation
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/obscura.git
+git clone https://github.com/ridpath/heaplessNights.git
 cd obscura
 
 # Install Python dependencies
@@ -748,7 +748,7 @@ def execute_attack(context):
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/obscura.git
+git clone https://github.com/ridpath/heaplessNights.git
 cd obscura
 
 # Install Python dependencies
@@ -810,7 +810,7 @@ wsl --install -d kali-linux
 # Inside WSL2:
 wsl
 cd ~
-git clone https://github.com/yourusername/obscura.git
+git clone https://github.com/ridpath/heaplessNights.git
 cd obscura
 pip install -e .
 
@@ -830,7 +830,7 @@ brew install libffi
 brew install aircrack-ng
 
 # Clone and install Obscura
-git clone https://github.com/yourusername/obscura.git
+git clone https://github.com/ridpath/heaplessNights.git
 cd obscura
 pip3 install -e .
 
@@ -1666,7 +1666,7 @@ We welcome contributions from the security research community. Obscura is an ope
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/obscura.git
+git clone https://github.com/ridpath/heaplessNights.git
 cd obscura
 
 # Create virtual environment
@@ -1810,7 +1810,7 @@ SOFTWARE.
 
 ## Contact & Support
 
-- **GitHub Issues**: https://github.com/yourusername/obscura/issues
+- **GitHub Issues**: https://github.com/ridpath/heaplessNights/issues
 - **Security Researchers**: Responsible disclosure appreciated (security@obscura-project.org)
 - **Commercial Licensing**: Enterprise support and custom development available
 - **Twitter**: @ObscuraProject
