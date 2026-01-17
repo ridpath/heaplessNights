@@ -574,9 +574,6 @@ The tool warns if run with unnecessary elevated privileges:
 ### Main Documentation
 - `README.md` - This file
 - `DOCKER_USAGE.md` - Complete Docker usage guide
-- `QUICK_START_JENKINS_LAB.md` - Jenkins Lab testing guide
-- `UNIT_TESTS_VERIFICATION.md` - Test suite results
-
 ### Jenkins Lab Configuration
 - `JenkinsBreaker/jenkins-lab/README_CREDENTIALS.md` - Credential configuration guide
 - `.dockerignore` - Docker build optimization
@@ -588,12 +585,6 @@ The tool warns if run with unnecessary elevated privileges:
 - `pytest.ini` - Pytest configuration
 - `test_docker_validation.bat` - Windows Docker validation
 - `test_docker_validation.sh` - Linux Docker validation
-
-### Status Reports
-- `STEP_4_COMPLETE.md` - Implementation completion report
-- `CLI_VERIFICATION.md` - CLI functionality verification
-- `EXPORT_VERIFICATION.md` - Export functions verification
-- `SECURITY_CONTROLS_VERIFICATION.md` - Security controls verification
 
 ## Troubleshooting
 
@@ -684,31 +675,6 @@ This version has been significantly extended with:
 ## License
 
 See `LICENSE` file for details.
-
-## Version History
-
-- v2.1 - Docker and credential configuration release
-  - Full Docker containerization (Dockerfile, docker-compose.yml)
-  - Zero hardcoded credentials (environment variable configuration)
-  - Automated Docker validation scripts (Windows/Linux)
-  - Warning system for default credentials
-  - Auto-discovery directory resolution
-  - Comprehensive credential configuration guide
-  - Enhanced Windows troubleshooting documentation
-
-- v2.0 - Red team-grade release
-  - Full CLI with all flags
-  - Cross-platform support
-  - JSON/CSV export
-  - Security controls (redaction, dry-run)
-  - Comprehensive test suite (61 tests)
-  - Jenkins Lab integration testing
-  - Enhanced documentation
-
-- v1.0 - Initial release
-  - Basic decryption functionality
-  - Interactive mode
-  - Limited error handling
 
 ---
 

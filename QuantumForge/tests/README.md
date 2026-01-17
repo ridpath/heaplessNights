@@ -353,6 +353,5 @@ rm -f core.*
 
 ## References
 
-- Main documentation: `../LINUX_LOADER_ENHANCEMENTS.md`
 - Build scripts: `../quantum_forge.sh`
 - Anti-analysis: `../anti_analysis.h`
