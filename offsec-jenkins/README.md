@@ -647,6 +647,30 @@ python decrypt.py --help
 - **Format support** - AES-ECB and AES-CBC only (covers Jenkins 1.x through latest 2.x)
 - **XML parsing** - Minimal error recovery for corrupted/malformed XML structures
 
+## Roadmap
+
+Active development continues in the [JenkinsBreaker](https://github.com/ridpath/heaplessNights/tree/main/JenkinsBreaker) exploitation framework with planned enhancements:
+
+### Interface Evolution
+- **Textual-based TUI** - Terminal UI for interactive exploitation workflows
+- **Browser-based interface** - Web UI for distributed team operations and reporting
+
+### Offensive Capabilities
+- **Jenkinsfuzzer** - Automated pipeline misconfiguration discovery and exploitation chaining
+- **Enhanced JWT cryptanalysis** - Advanced token forgery and privilege escalation techniques
+- **Plugin fingerprinting** - Comprehensive vulnerability mapping across Jenkins plugin ecosystem
+
+### Persistence Architecture
+- **Modular persistence extension packs** - Production-grade backdoor frameworks for long-term access retention across Jenkins infrastructure updates
+
+### Testing Environment
+JenkinsBreaker includes a fully containerized Jenkins Lab environment for validation and development:
+- **Location**: `JenkinsBreaker/jenkins-lab`
+- **Access**: `http://localhost:8080` (credentials: `admin/admin` - configurable via environment variables)
+- **Docker**: Tested on Docker 29.1.5+ across Windows WSL2, Linux, and macOS environments
+
+All roadmap features prioritize operational security, stealth, and real-world deployment constraints for professional security assessment teams.
+
 ## Legal Notice
 
 This tool is for authorized security assessments, penetration testing, CTF competitions, and educational purposes only.
