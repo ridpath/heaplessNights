@@ -57,10 +57,10 @@ RF IoT satellite adversarial frameworks, ridpath cybersecurity research
 
 | Project / Tool | Description / Domain | Link | Status |
 |----------------|--------------------|------|--------|
-| **Obscura** | RF / IoT / Satellite + AI Adversary Simulation Framework | ➜ [`/obscura`](./obscura/) | Alpha / Experimental |
-| **QuantumForge** | In-Memory Payload Loader + Polyglot Container Generator | ➜ [`/QuantumForge`](./QuantumForge/) | Research Release |
-| **JenkinsBreaker** | Jenkins Exploitation Automation + CI/CD Kill-Chain Ops | ➜ [`/JenkinsBreaker`](./JenkinsBreaker/) | Active Development |
-| **OffSec-Jenkins Decryptor** | Jenkins Credential Decryption & Post-Exploitation Utility | ➜ [`/offsec-jenkins`](./offsec-jenkins/) | Stable |
+| **Obscura** | RF / IoT / Satellite + AI Adversary Simulation Framework | [`/obscura`](./obscura/) | Alpha / Experimental |
+| **QuantumForge** | In-Memory Payload Loader + Polyglot Container Generator | [`/QuantumForge`](./QuantumForge/) | Research Release |
+| **JenkinsBreaker** | Jenkins Exploitation Automation + CI/CD Kill-Chain Ops | [`/JenkinsBreaker`](./JenkinsBreaker/) | Active Development |
+| **OffSec-Jenkins Decryptor** | Jenkins Credential Decryption & Post-Exploitation Utility | [`/offsec-jenkins`](./offsec-jenkins/) | Stable |
 
 <!--
 ICS OT detection engineering, AI-based exploit chaining, Jenkins cloud pivot automation,

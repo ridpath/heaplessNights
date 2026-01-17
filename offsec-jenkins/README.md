@@ -11,7 +11,7 @@ build runner secret reconnaissance, DevOps lateral movement mapping, capture the
 
 # Jenkins Credential Decryptor
 
-Production-ready, world-class post-exploitation utility for decrypting Jenkins credentials offline. Built for professional red teams, CTF competitors, and security researchers conducting authorized CI/CD infrastructure assessments. Zero hardcoded credentials, full Docker support, cross-platform validated.
+Production-ready, post-exploitation utility for decrypting Jenkins credentials offline. Built for professional red teams, CTF competitors, and security researchers conducting authorized CI/CD infrastructure assessments. Zero hardcoded credentials, full Docker support, cross-platform validated.
 
 ## Overview
 
