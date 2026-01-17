@@ -397,7 +397,7 @@ The test script will:
 4. Run unit test suite
 5. Generate summary report
 
-See `QUICK_START_JENKINS_LAB.md` for detailed testing instructions.
+See `tests/JENKINS_LAB_TESTING.md` for comprehensive Jenkins Lab integration testing documentation.
 
 ## Typical Jenkins File Paths
 
@@ -576,8 +576,6 @@ The tool warns if run with unnecessary elevated privileges:
 ### Main Documentation
 - `README.md` - This file
 - `DOCKER_USAGE.md` - Complete Docker usage guide
-- `QUICK_START_JENKINS_LAB.md` - Jenkins Lab testing guide
-- `JENKINSBREAKER_INTEGRATION.md` - JenkinsBreaker integration reference
 
 ### Test Documentation
 - `tests/README.md` - Test suite overview
@@ -703,8 +701,6 @@ See `LICENSE` file for details.
 
 ---
 
-**For Jenkins Lab testing, see**: `QUICK_START_JENKINS_LAB.md`
-
 **For unit test documentation, see**: `tests/README.md`
 
-**For integration testing, see**: `tests/JENKINS_LAB_TESTING.md`
+**For Jenkins Lab integration testing, see**: `tests/JENKINS_LAB_TESTING.md`
