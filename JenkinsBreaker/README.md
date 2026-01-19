@@ -267,13 +267,7 @@ python3 test_integration.py
 
 All components tested and validated on WSL Parrot Linux.
 
-### Access Method
 
-```
-Location: \\wsl.localhost\parrot
-User: over
-Password: over
-```
 
 ### Run from WSL
 
@@ -289,13 +283,7 @@ cd ../offsec-jenkins
 python3 decrypt.py --path /var/jenkins_home --export-json loot.json --reveal-secrets
 ```
 
-### WSL Validation Results
 
-- 11/11 CVE modules loaded successfully
-- Jenkins Lab runs on Docker Desktop, accessible from WSL via localhost:8080
-- All bash scripts compatible with WSL environment
-- Python dependencies installed via pip with --break-system-packages flag
-- Full exploit chain tested: RCE → credential extraction → decryption → JSON export
 
 ## Modules
 
