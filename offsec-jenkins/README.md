@@ -13,7 +13,7 @@ build runner secret reconnaissance, DevOps lateral movement mapping, capture the
 >
 > This project has been **extracted into its own dedicated repository** for active development:
 >
->  [https://github.com/ridpath/JenkinsBreaker](https://github.com/ridpath/Jenkins-Credential-Decryptor)
+> https://github.com/ridpath/Jenkins-Credential-Decryptor
 >
 > The version in this repository is **no longer maintained and legacy code**.  
 > Please refer to the new repository for the latest code, documentation, and updates.
