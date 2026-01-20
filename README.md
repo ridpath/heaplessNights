@@ -60,7 +60,7 @@ RF IoT satellite adversarial frameworks, ridpath cybersecurity research
 | **Obscura** | RF / IoT / Satellite + AI Adversary Simulation Framework | [`/obscura`](./obscura/) | Alpha / Experimental |
 | **QuantumForge** | In-Memory Payload Loader + Polyglot Container Generator | [`/QuantumForge`](./QuantumForge/) | Research Release |
 | **JenkinsBreaker** | Jenkins Exploitation Automation + CI/CD Kill-Chain Ops | [`/JenkinsBreaker`](https://github.com/ridpath/JenkinsBreaker) | Active development moved to its own repository |
-| **OffSec-Jenkins Decryptor** | Jenkins Credential Decryption & Post-Exploitation Utility | [`/offsec-jenkins`](./offsec-jenkins/) | Stable |
+| **OffSec-Jenkins Decryptor** | Jenkins Credential Decryption & Post-Exploitation Utility | [`/offsec-jenkins`](https://github.com/ridpath/Jenkins-Credential-Decryptor) | Stable moved to its own repo |
 
 <!--
 ICS OT detection engineering, AI-based exploit chaining, Jenkins cloud pivot automation,
